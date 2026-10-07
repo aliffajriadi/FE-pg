@@ -1,0 +1,379 @@
+'use client';
+
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi, type AdminStore } from '@/lib/api/admin';
+import { useApiMutation } from '@/hooks/use-api-mutation';
+import { optionalNumber, requiredNumber, toOptionalNumber } from '@/lib/validations/common';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FormField } from '@/components/shared/FormField';
+import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import type { FeeType } from '@/types';
+
+const STORES_KEY = ['admin-stores'];
+const FEE_TYPE_OPTIONS = [
+  { value: 'FIXED', label: 'Tetap (Nominal Rp)' },
+  { value: 'PERCENT', label: 'Persen (%)' },
+];
+
+function DialogActions({ pending, onCancel, label = 'Simpan' }: { pending: boolean; onCancel: () => void; label?: string }) {
+  return (
+    <DialogFooter>
+      <Button type="button" variant="outline" onClick={onCancel}>
+        Batal
+      </Button>
+      <Button type="submit" disabled={pending}>
+        {pending ? 'Menyimpan...' : label}
+      </Button>
+    </DialogFooter>
+  );
+}
+
+// ─── Fee transaksi & fee penarikan (bentuk form sama) ────────
+const feeSchema = z.object({
+  type: z.enum(['FIXED', 'PERCENT']),
+  value: requiredNumber(),
+  threshold: optionalNumber(),
+  extraType: z.enum(['FIXED', 'PERCENT']),
+  extraValue: optionalNumber(),
+  maxAmount: optionalNumber(),
+});
+type FeeForm = z.infer<typeof feeSchema>;
+
+function feeDefaults(store: AdminStore, mode: 'fee' | 'wd'): FeeForm {
+  const nullToUndef = (v: number | null) => (v ? v : undefined);
+  return mode === 'fee'
+    ? {
+        type: store.feeType,
+        value: store.feeValue,
+        threshold: nullToUndef(store.feeThreshold),
+        extraType: store.extraFeeType ?? 'FIXED',
+        extraValue: nullToUndef(store.extraFeeValue),
+      }
+    : {
+        type: store.wdFeeType ?? 'FIXED',
+        value: store.wdFeeValue ?? 3500,
+        threshold: nullToUndef(store.wdFeeThreshold),
+        extraType: store.wdExtraFeeType ?? 'FIXED',
+        extraValue: nullToUndef(store.wdExtraFeeValue),
+        maxAmount: nullToUndef(store.wdMaxAmount),
+      };
+}
+
+export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'wd' }) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<FeeForm>({ resolver: zodResolver(feeSchema), defaultValues: feeDefaults(store, mode) });
+  const { errors } = form.formState;
+  const isWd = mode === 'wd';
+
+  const mutation = useApiMutation(
+    (data: FeeForm) => {
+      // Extra fee hanya berlaku jika threshold diisi (> 0), sama seperti frontend lama
+      const hasThreshold = !!data.threshold && data.threshold > 0;
+      const threshold = hasThreshold ? data.threshold! : null;
+      const extraValue = hasThreshold ? (data.extraValue ?? 0) : null;
+      return isWd
+        ? adminApi.updateStoreWdSettings(store.id, {
+            wdFeeType: data.type,
+            wdFeeValue: data.value,
+            wdFeeThreshold: threshold,
+            wdExtraFeeType: data.extraType,
+            wdExtraFeeValue: extraValue,
+            wdMaxAmount: data.maxAmount && data.maxAmount > 0 ? data.maxAmount : null,
+          })
+        : adminApi.updateStoreFee(store.id, {
+            feeType: data.type,
+            feeValue: data.value,
+            feeThreshold: threshold,
+            extraFeeType: data.extraType,
+            extraFeeValue: extraValue,
+          });
+    },
+    {
+      successMessage: isWd ? 'Pengaturan penarikan disimpan' : 'Fee toko disimpan',
+      invalidate: [STORES_KEY],
+      onSuccess: () => setOpen(false),
+    }
+  );
+
+  const typeSelect = (name: 'type' | 'extraType', id: string) => (
+    <Controller
+      control={form.control}
+      name={name}
+      render={({ field }) => (
+        <SimpleSelect id={id} value={field.value} onValueChange={(v) => field.onChange(v as FeeType)} options={FEE_TYPE_OPTIONS} />
+      )}
+    />
+  );
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          form.reset(feeDefaults(store, mode));
+          setOpen(true);
+        }}
+      >
+        {isWd ? 'Fee WD' : 'Fee'}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{isWd ? 'Biaya & Batasan Penarikan (WD)' : 'Biaya Layanan (Fee)'}</DialogTitle>
+            <DialogDescription>{store.name}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-5">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold">{isWd ? 'Biaya Dasar Penarikan' : 'Fee Dasar'}</h3>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Tipe" htmlFor={`${mode}-type`}>
+                  {typeSelect('type', `${mode}-type`)}
+                </FormField>
+                <FormField label="Nilai" htmlFor={`${mode}-value`} error={errors.value?.message}>
+                  <Input id={`${mode}-value`} type="number" min={0} step="any" {...form.register('value', { valueAsNumber: true })} />
+                </FormField>
+              </div>
+            </section>
+
+            <section className="space-y-3 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-semibold">Extra Fee (Opsional)</h3>
+                <p className="text-xs text-muted-foreground">
+                  Biaya tambahan otomatis jika nominal {isWd ? 'penarikan' : 'transaksi'} mencapai batas tertentu.
+                </p>
+              </div>
+              <FormField label="Batas Minimal (Threshold)" htmlFor={`${mode}-threshold`} error={errors.threshold?.message}>
+                <Input
+                  id={`${mode}-threshold`}
+                  type="number"
+                  min={0}
+                  placeholder="Kosongkan jika tidak ada extra fee"
+                  {...form.register('threshold', { setValueAs: toOptionalNumber })}
+                />
+              </FormField>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField label="Tipe Extra Fee" htmlFor={`${mode}-extra-type`}>
+                  {typeSelect('extraType', `${mode}-extra-type`)}
+                </FormField>
+                <FormField label="Nilai Extra Fee" htmlFor={`${mode}-extra-value`} error={errors.extraValue?.message}>
+                  <Input
+                    id={`${mode}-extra-value`}
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="0"
+                    {...form.register('extraValue', { setValueAs: toOptionalNumber })}
+                  />
+                </FormField>
+              </div>
+            </section>
+
+            {isWd && (
+              <section className="space-y-3 border-t pt-4">
+                <h3 className="text-sm font-semibold">Batasan Penarikan</h3>
+                <FormField label="Maksimal Penarikan per Transaksi (Rp)" htmlFor="wd-max" error={errors.maxAmount?.message}>
+                  <Input
+                    id="wd-max"
+                    type="number"
+                    min={0}
+                    placeholder="Kosongkan jika tidak ada batasan"
+                    {...form.register('maxAmount', { setValueAs: toOptionalNumber })}
+                  />
+                </FormField>
+              </section>
+            )}
+
+            <DialogActions pending={mutation.isPending} onCancel={() => setOpen(false)} label="Simpan Konfigurasi" />
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── Durasi hold saldo ───────────────────────────────────────
+const holdSchema = z.object({ holdHours: requiredNumber() });
+
+export function HoldHoursDialog({ store }: { store: AdminStore }) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof holdSchema>>({ resolver: zodResolver(holdSchema) });
+
+  const mutation = useApiMutation(
+    ({ holdHours }: { holdHours: number }) => adminApi.updateStoreHoldHours(store.id, holdHours),
+    { successMessage: 'Durasi hold saldo disimpan', invalidate: [STORES_KEY], onSuccess: () => setOpen(false) }
+  );
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          form.reset({ holdHours: store.balanceHoldHours ?? 48 });
+          setOpen(true);
+        }}
+      >
+        Hold
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Durasi Penahanan Saldo (Hold)</DialogTitle>
+            <DialogDescription>{store.name}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+            <FormField
+              label="Durasi (Jam)"
+              htmlFor="hold-hours"
+              error={form.formState.errors.holdHours?.message}
+              hint="0 berarti saldo langsung masuk ke saldo utama tanpa ditahan."
+            >
+              <Input id="hold-hours" type="number" min={0} {...form.register('holdHours', { valueAsNumber: true })} />
+            </FormField>
+            <DialogActions pending={mutation.isPending} onCancel={() => setOpen(false)} />
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ─── Kelola saldo (penyesuaian manual) ───────────────────────
+const balanceSchema = z.object({
+  type: z.enum(['CREDIT', 'DEBIT']),
+  amount: z.number({ error: 'Nominal wajib diisi' }).min(1, 'Minimal Rp1'),
+  description: z.string().optional(),
+});
+type BalanceForm = z.infer<typeof balanceSchema>;
+
+export function BalanceDialog({ store }: { store: AdminStore }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<BalanceForm | null>(null);
+  const form = useForm<BalanceForm>({ resolver: zodResolver(balanceSchema), defaultValues: { type: 'CREDIT' } });
+
+  const { data: balance } = useQuery({
+    queryKey: ['admin-store-balance', store.id],
+    queryFn: () => adminApi.getStoreBalance(store.id),
+    select: (res) => res.data,
+    enabled: open,
+  });
+
+  const mutation = useApiMutation((data: BalanceForm) => adminApi.adjustStoreBalance(store.id, data), {
+    invalidate: [STORES_KEY, ['admin-store-balance', store.id]],
+    onSuccess: () => {
+      setPending(null);
+      setOpen(false);
+    },
+  });
+
+  return (
+    <>
+      <Button
+        size="sm"
+        onClick={() => {
+          form.reset({ type: 'CREDIT', amount: undefined, description: '' });
+          setPending(null);
+          setOpen(true);
+        }}
+      >
+        Saldo
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Kelola Saldo</DialogTitle>
+            <DialogDescription>{store.name}</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-center text-sm">
+            <div>
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="font-bold">{formatCurrency(balance?.totalBalance ?? store.balance)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Tersedia</p>
+              <p className="font-bold text-emerald-600">{balance ? formatCurrency(balance.availableBalance) : '...'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Ditahan</p>
+              <p className="font-bold text-amber-600">{balance ? formatCurrency(balance.pendingBalance) : '...'}</p>
+            </div>
+          </div>
+
+          {pending ? (
+            <div className="space-y-4">
+              <p className="text-sm">
+                Konfirmasi <strong>{pending.type === 'CREDIT' ? 'penambahan' : 'pengurangan'}</strong> saldo sebesar{' '}
+                <strong>{formatCurrency(pending.amount)}</strong>?
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPending(null)} disabled={mutation.isPending}>
+                  Kembali
+                </Button>
+                <Button onClick={() => mutation.mutate(pending)} disabled={mutation.isPending}>
+                  {mutation.isPending ? 'Memproses...' : 'Ya, simpan'}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <form onSubmit={form.handleSubmit(setPending)} className="space-y-4">
+              <Controller
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <RadioGroup value={field.value} onValueChange={field.onChange} className="grid-cols-2">
+                    {[
+                      { value: 'CREDIT', label: 'Tambah Saldo' },
+                      { value: 'DEBIT', label: 'Kurangi Saldo' },
+                    ].map((opt) => (
+                      <Label key={opt.value} className="cursor-pointer rounded-lg border p-3 font-normal">
+                        <RadioGroupItem value={opt.value} /> {opt.label}
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                )}
+              />
+              <FormField label="Nominal (Rp)" htmlFor="adj-amount" error={form.formState.errors.amount?.message}>
+                <Input id="adj-amount" type="number" min={1} placeholder="Contoh: 10000" {...form.register('amount', { valueAsNumber: true })} />
+              </FormField>
+              <FormField label="Keterangan" htmlFor="adj-desc">
+                <Textarea id="adj-desc" rows={3} placeholder="Alasan penyesuaian saldo..." {...form.register('description')} />
+              </FormField>
+              <DialogActions pending={false} onCancel={() => setOpen(false)} label="Lanjutkan" />
+            </form>
+          )}
+
+          {!!balance?.recentLogs.length && (
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-xs font-semibold text-muted-foreground">Riwayat Saldo Terakhir</p>
+              <ul className="max-h-40 space-y-1.5 overflow-y-auto text-xs">
+                {balance.recentLogs.map((log) => (
+                  <li key={log.id} className="flex justify-between gap-3">
+                    <span className="truncate text-muted-foreground" title={log.description ?? ''}>
+                      {formatDate(log.createdAt)} · {log.description || '-'}
+                    </span>
+                    <span className={log.type === 'CREDIT' ? 'text-emerald-600' : 'text-red-600'}>
+                      {log.type === 'CREDIT' ? '+' : '-'}
+                      {formatCurrency(log.amount)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
