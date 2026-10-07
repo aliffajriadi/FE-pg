@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { Logo } from '@/components/shared/Logo';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useLogout, useMe } from '@/features/auth/hooks';
 import { adminSupportApi } from '@/lib/api/support';
 import { cn } from '@/lib/utils';
@@ -66,6 +67,13 @@ const MERCHANT_NAV: NavItem[] = [
 export function AppShell({ role, children }: { role: UserRole; children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen]);
   const { data: me } = useMe();
   const logout = useLogout();
   const isAdmin = role === 'ADMIN';
@@ -85,7 +93,6 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
   const isActive = (href: string) => (href === rootHref ? pathname === href : pathname.startsWith(href));
 
   const user = me?.user;
-  const initial = user?.name?.charAt(0).toUpperCase() || 'U';
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -132,9 +139,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       </nav>
 
       <div className="flex items-center gap-3 border-t p-4">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 font-bold text-primary">
-          {initial}
-        </div>
+        <UserAvatar name={user?.name} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{user?.name ?? '...'}</p>
           <p className="truncate text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Merchant'}</p>
@@ -153,12 +158,25 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       <aside className="hidden w-64 shrink-0 border-r bg-card md:block">{sidebar}</aside>
 
       {/* Sidebar mobile (drawer) */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 md:hidden">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85%] bg-card shadow-xl">{sidebar}</aside>
-        </div>
-      )}
+      {/* Selalu dirender agar transisi buka/tutup bisa dianimasikan */}
+      <div className={cn('fixed inset-0 z-40 md:hidden', !mobileOpen && 'pointer-events-none')} aria-hidden={!mobileOpen}>
+        <div
+          className={cn(
+            'absolute inset-0 bg-black/40 transition-opacity duration-300',
+            mobileOpen ? 'opacity-100' : 'opacity-0'
+          )}
+          onClick={() => setMobileOpen(false)}
+        />
+        <aside
+          inert={!mobileOpen}
+          className={cn(
+            'absolute inset-y-0 left-0 w-72 max-w-[85%] bg-card shadow-xl transition-transform duration-300 ease-out motion-reduce:transition-none',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full'
+          )}
+        >
+          {sidebar}
+        </aside>
+      </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center gap-2 border-b bg-card px-4 md:hidden">
