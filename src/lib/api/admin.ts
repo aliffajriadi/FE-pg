@@ -125,7 +125,7 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),
 
   // Transaksi
-  getTransactions: (params: ListParams & { storeId?: number }) =>
+  getTransactions: (params: ListParams & { storeId?: number; startDate?: string; endDate?: string }) =>
     fetchApi<PaginatedResponse<AdminOrder>>(`/admin/transactions${toQuery({ ...params })}`),
   markTransactionPaid: (id: number) => fetchApi<Msg>(`/admin/transactions/${id}/mark-paid`, json('POST')),
   cancelTransaction: (id: number) => fetchApi<Msg>(`/admin/transactions/${id}/cancel`, json('POST')),

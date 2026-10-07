@@ -27,6 +27,16 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { Logo } from '@/components/shared/Logo';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { ProfileDialog } from './ProfileDialog';
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useLogout, useMe } from '@/features/auth/hooks';
 import { adminSupportApi } from '@/lib/api/support';
 import { cn } from '@/lib/utils';
@@ -67,6 +77,8 @@ const MERCHANT_NAV: NavItem[] = [
 export function AppShell({ role, children }: { role: UserRole; children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -139,13 +151,23 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       </nav>
 
       <div className="flex items-center gap-3 border-t p-4">
-        <UserAvatar name={user?.name} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{user?.name ?? '...'}</p>
-          <p className="truncate text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Merchant'}</p>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(false);
+            setProfileOpen(true);
+          }}
+          className="-m-1.5 flex min-w-0 flex-1 items-center gap-3 rounded-md p-1.5 text-left transition-colors hover:bg-muted"
+          title="Lihat profil"
+        >
+          <UserAvatar name={user?.name} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{user?.name ?? '...'}</span>
+            <span className="block truncate text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Merchant'}</span>
+          </span>
+        </button>
         <ThemeToggle />
-        <Button variant="ghost" size="icon" onClick={logout} title="Keluar" aria-label="Keluar">
+        <Button variant="ghost" size="icon" onClick={() => setConfirmLogout(true)} title="Keluar" aria-label="Keluar">
           <LogOut />
         </Button>
       </div>
@@ -192,6 +214,32 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
           <div className="mx-auto max-w-7xl space-y-6">{children}</div>
         </main>
       </div>
+
+      <ProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        user={user}
+        store={me?.store}
+        onLogout={() => {
+          setProfileOpen(false);
+          setConfirmLogout(true);
+        }}
+      />
+
+      <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Keluar dari AkuQRIS?</AlertDialogTitle>
+            <AlertDialogDescription>Anda perlu masuk kembali untuk mengakses dashboard.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <Button variant="destructive" onClick={logout}>
+              Ya, keluar
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

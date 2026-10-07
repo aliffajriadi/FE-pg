@@ -8,13 +8,16 @@ import { useApiMutation } from '@/hooks/use-api-mutation';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { StatusTabs } from '@/components/shared/StatusTabs';
 import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { DateRangeFilter, EMPTY_RANGE, rangeToQuery } from '@/components/shared/DateRangeFilter';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { exportTransactions } from '@/lib/export-transactions';
 import { CreateOrderDialog } from './CreateOrderDialog';
 
 const STATUS_TABS = [
@@ -29,10 +32,13 @@ export default function OrdersTable() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [range, setRange] = useState(EMPTY_RANGE);
+
+  const filters = { search, status, ...rangeToQuery(range) };
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['merchant-orders', { page, search, status }],
-    queryFn: () => merchantApi.getOrders({ page, search, status }),
+    queryKey: ['merchant-orders', { page, search, status, range }],
+    queryFn: () => merchantApi.getOrders({ ...filters, page }),
     placeholderData: keepPreviousData,
   });
 
@@ -44,31 +50,47 @@ export default function OrdersTable() {
   return (
     <>
       <PageHeader title="Data Transaksi" description="Daftar invoice dan status pembayarannya.">
+        <CreateOrderDialog />
+      </PageHeader>
+
+      <StatusTabs
+        tabs={STATUS_TABS}
+        value={status}
+        onChange={(value) => {
+          setStatus(value);
+          setPage(1);
+        }}
+      />
+
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
         <SearchForm
+          fill
           placeholder="Cari invoice, produk, pelanggan..."
           onSearch={(value) => {
             setSearch(value);
             setPage(1);
           }}
         />
-        <CreateOrderDialog />
-      </PageHeader>
-
-      <Tabs
-        value={status}
-        onValueChange={(value) => {
-          setStatus(value as string);
-          setPage(1);
-        }}
-      >
-        <TabsList className="max-w-full overflow-x-auto">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <DateRangeFilter
+            value={range}
+            onChange={(value) => {
+              setRange(value);
+              setPage(1);
+            }}
+          />
+          <ExportButton
+            onExport={() =>
+              exportTransactions({
+                fetchPage: (p, limit) => merchantApi.getOrders({ ...filters, page: p, limit }),
+                includeStore: false,
+                range,
+                prefix: 'transaksi',
+              })
+            }
+          />
+        </div>
+      </div>
 
       <Card className="py-0">
         <Table>

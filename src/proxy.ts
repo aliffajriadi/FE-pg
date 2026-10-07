@@ -15,6 +15,7 @@ export function proxy(request: NextRequest) {
 
   if (!token) {
     if (isAdminRoute || isMerchantRoute) return redirect('/login');
+    // Landing page sementara disembunyikan; aktifkan lagi dengan menghapus baris ini & redirect di app/page.tsx
     if (pathname === '/') return redirect('/login');
     return NextResponse.next();
   }

@@ -54,7 +54,7 @@ export const merchantApi = {
   getBanner: () => fetchApi<ApiResponse<SystemSetting | null>>('/merchant/banner'),
 
   // Transaksi
-  getOrders: (params: { page?: number; limit?: number; search?: string; status?: string }) =>
+  getOrders: (params: { page?: number; limit?: number; search?: string; status?: string; startDate?: string; endDate?: string }) =>
     fetchApi<PaginatedResponse<Order>>(`/merchant/orders${toQuery({ ...params })}`),
   createOrder: (body: CreateOrderPayload) =>
     fetchApi<ApiResponse<Order>>('/merchant/orders', json('POST', { ...body, method: 'qris' })),

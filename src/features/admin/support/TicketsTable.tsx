@@ -7,9 +7,9 @@ import { adminSupportApi } from '@/lib/api/support';
 import { formatDate } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { StatusTabs } from '@/components/shared/StatusTabs';
 import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
@@ -48,21 +48,14 @@ export default function TicketsTable() {
         />
       </PageHeader>
 
-      <Tabs
+      <StatusTabs
+        tabs={STATUS_TABS}
         value={status}
-        onValueChange={(value) => {
-          setStatus(value as string);
+        onChange={(value) => {
+          setStatus(value);
           setPage(1);
         }}
-      >
-        <TabsList className="max-w-full overflow-x-auto">
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      />
 
       <Card className="py-0">
         <Table>

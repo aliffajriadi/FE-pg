@@ -15,6 +15,10 @@ import { TableState } from '@/components/shared/TableState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import { DateRangeFilter, EMPTY_RANGE, rangeToQuery } from '@/components/shared/DateRangeFilter';
+import { ExportButton } from '@/components/shared/ExportButton';
+import { RefreshButton } from '@/components/shared/RefreshButton';
+import { exportTransactions } from '@/lib/export-transactions';
 
 const ALL = 'ALL';
 
@@ -23,11 +27,13 @@ export default function TransactionsTable() {
   const [search, setSearch] = useState('');
   const [storeId, setStoreId] = useState(ALL);
   const [storeSearch, setStoreSearch] = useState('');
+  const [range, setRange] = useState(EMPTY_RANGE);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-transactions', { page, search, storeId }],
-    queryFn: () =>
-      adminApi.getTransactions({ page, search, storeId: storeId === ALL ? undefined : Number(storeId) }),
+  const filters = { search, storeId: storeId === ALL ? undefined : Number(storeId), ...rangeToQuery(range) };
+
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['admin-transactions', { page, search, storeId, range }],
+    queryFn: () => adminApi.getTransactions({ ...filters, page }),
     placeholderData: keepPreviousData,
   });
 
@@ -48,30 +54,59 @@ export default function TransactionsTable() {
 
   return (
     <>
-      <PageHeader title="Riwayat Transaksi" description="Seluruh transaksi dari semua merchant.">
-        <Input
-          placeholder="Cari merchant..."
-          value={storeSearch}
-          onChange={(e) => setStoreSearch(e.target.value)}
-          className="w-full sm:w-40"
-        />
-        <SimpleSelect
-          value={storeId}
-          onValueChange={(v) => {
-            setStoreId(v || ALL);
-            setPage(1);
-          }}
-          options={storeOptions}
-          className="sm:w-48"
-        />
-        <SearchForm
-          placeholder="Cari invoice, produk, pelanggan..."
-          onSearch={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-        />
-      </PageHeader>
+      <PageHeader title="Riwayat Transaksi" description="Seluruh transaksi dari semua merchant." />
+
+      <div className="space-y-2">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <SearchForm
+            fill
+            placeholder="Cari invoice, produk, pelanggan..."
+            onSearch={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+          />
+          <div className="flex gap-2">
+            <Input
+              placeholder="Cari merchant..."
+              value={storeSearch}
+              onChange={(e) => setStoreSearch(e.target.value)}
+              className="min-w-0 flex-1 lg:w-40 lg:flex-none"
+            />
+            <SimpleSelect
+              value={storeId}
+              onValueChange={(v) => {
+                setStoreId(v || ALL);
+                setPage(1);
+              }}
+              options={storeOptions}
+              className="min-w-0 flex-1 lg:w-48 lg:flex-none"
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <DateRangeFilter
+            value={range}
+            onChange={(value) => {
+              setRange(value);
+              setPage(1);
+            }}
+          />
+          <div className="flex gap-2 *:flex-1 sm:*:flex-none">
+            <RefreshButton onRefresh={() => refetch()} loading={isFetching} />
+            <ExportButton
+              onExport={() =>
+                exportTransactions({
+                  fetchPage: (p, limit) => adminApi.getTransactions({ ...filters, page: p, limit }),
+                  includeStore: true,
+                  range,
+                  prefix: 'riwayat-transaksi',
+                })
+              }
+            />
+          </div>
+        </div>
+      </div>
 
       <Card className="py-0">
         <Table>
