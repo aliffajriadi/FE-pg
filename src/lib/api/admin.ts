@@ -125,6 +125,8 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/wd-settings`, json('PATCH', body)),
   updateStoreHoldHours: (id: number, holdHours: number) =>
     fetchApi<Msg>(`/admin/stores/${id}/hold-hours`, json('PATCH', { holdHours })),
+  updateStoreAutoWd: (id: number, excluded: boolean) =>
+    fetchApi<Msg>(`/admin/stores/${id}/auto-wd`, json('PATCH', { excluded })),
   getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),
   adjustStoreBalance: (id: number, body: { type: 'CREDIT' | 'DEBIT'; amount: number; description?: string }) =>
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),

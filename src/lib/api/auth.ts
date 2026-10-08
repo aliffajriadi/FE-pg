@@ -4,6 +4,7 @@ import type { ApiResponse, Store, User } from '@/types';
 export interface LoginPayload {
   email: string;
   password: string;
+  remember?: boolean;
 }
 
 export const authApi = {

@@ -4,8 +4,8 @@ import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-quer
 import { toast } from 'sonner';
 
 interface Options<TData> {
-  /** Pesan toast saat sukses. Jika tidak diisi, pakai `message` dari response API. */
-  successMessage?: string;
+  /** Pesan toast saat sukses. Jika tidak diisi, pakai `message` dari response API. `false` = tanpa toast. */
+  successMessage?: string | false;
   /** Query yang di-refresh setelah sukses. */
   invalidate?: QueryKey[];
   onSuccess?: (data: TData) => void;
@@ -22,7 +22,7 @@ export function useApiMutation<TVariables = void, TData = unknown>(
     mutationFn,
     onSuccess: (data) => {
       const apiMessage = (data as { message?: string } | undefined)?.message;
-      toast.success(successMessage || apiMessage || 'Berhasil');
+      if (successMessage !== false) toast.success(successMessage || apiMessage || 'Berhasil');
       invalidate.forEach((queryKey) => queryClient.invalidateQueries({ queryKey }));
       onSuccess?.(data);
     },

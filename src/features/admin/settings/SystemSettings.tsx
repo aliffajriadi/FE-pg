@@ -261,7 +261,8 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           <CardTitle>Auto Penarikan</CardTitle>
           <CardDescription>
             Saldo Utama merchant yang mengendap ditarik otomatis ke rekening yang disetujui. Merchant bisa memilih interval
-            lebih pendek, tapi tidak bisa membatalkan penarikan otomatis.
+            lebih pendek, tapi tidak bisa membatalkan penarikan otomatis. Merchant tertentu bisa dikecualikan lewat kolom Auto WD
+            di menu Manajemen Toko.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

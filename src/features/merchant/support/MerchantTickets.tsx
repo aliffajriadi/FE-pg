@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
@@ -10,28 +9,17 @@ import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { merchantSupportApi } from '@/lib/api/support';
 import { useApiMutation } from '@/hooks/use-api-mutation';
-import { formatDate } from '@/lib/utils';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusTabs } from '@/components/shared/StatusTabs';
 import { Pagination } from '@/components/shared/Pagination';
-import { TableState } from '@/components/shared/TableState';
-import { StatusBadge } from '@/components/shared/StatusBadge';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
-
-const STATUS_TABS = [
-  { value: '', label: 'Semua' },
-  { value: 'OPEN', label: 'Terbuka' },
-  { value: 'IN_PROGRESS', label: 'Dalam Proses' },
-  { value: 'RESOLVED', label: 'Selesai' },
-  { value: 'CLOSED', label: 'Ditutup' },
-];
+import { TicketList } from '@/features/support/TicketList';
+import { TICKET_STATUS_TABS } from '@/features/support/utils';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Rendah' },
@@ -133,7 +121,7 @@ export default function MerchantTickets() {
       </PageHeader>
 
       <StatusTabs
-        tabs={STATUS_TABS}
+        tabs={TICKET_STATUS_TABS}
         value={status}
         onChange={(value) => {
           setStatus(value);
@@ -141,51 +129,23 @@ export default function MerchantTickets() {
         }}
       />
 
-      <Card className="py-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Subjek</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Prioritas</TableHead>
-              <TableHead>Pesan</TableHead>
-              <TableHead>Terakhir Diperbarui</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableState
-              colSpan={7}
-              isLoading={isLoading}
-              error={error}
-              isEmpty={!tickets.length}
-              emptyText='Belum ada tiket. Klik "Buat Tiket Baru" untuk mengirim kendala.'
-            />
-            {tickets.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="text-muted-foreground">#{t.id}</TableCell>
-                <TableCell className="max-w-64 truncate font-medium" title={t.subject}>
-                  {t.subject}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={t.status} />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={t.priority} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">{t._count?.messages ?? 0}</TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(t.updatedAt)}</TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/dashboard/support/${t.id}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    Lihat
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      <TicketList
+        tickets={tickets}
+        viewer="MERCHANT"
+        hrefFor={(t) => `/dashboard/support/${t.id}`}
+        isLoading={isLoading}
+        error={error}
+        empty={
+          status ? (
+            'Tidak ada tiket dengan status ini.'
+          ) : (
+            <>
+              <p className="font-medium text-foreground">Belum ada tiket</p>
+              <p>Ada kendala? Klik &quot;Buat Tiket Baru&quot; dan tim kami akan membantu.</p>
+            </>
+          )
+        }
+      />
 
       <Pagination page={page} totalPages={data?.pagination.totalPages ?? 1} onPageChange={setPage} />
     </>

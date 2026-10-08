@@ -16,6 +16,7 @@ import { FormField } from '@/components/shared/FormField';
 const loginSchema = z.object({
   email: z.email('Format email tidak valid'),
   password: z.string().min(1, 'Kata sandi wajib diisi'),
+  remember: z.boolean(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -28,12 +29,15 @@ export default function LoginForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '', remember: false },
+  });
 
   const loginMutation = useMutation({
     mutationFn: authApi.login,
-    onSuccess: ({ data }) => {
-      setSession(data.token, data.user.role);
+    onSuccess: ({ data }, { remember }) => {
+      setSession(data.token, data.user.role, remember);
       router.replace(homePathFor(data.user.role));
     },
   });
@@ -81,6 +85,16 @@ export default function LoginForm() {
           </button>
         </div>
       </FormField>
+
+      <label className="flex w-fit cursor-pointer items-center gap-2 text-sm select-none">
+        <input
+          type="checkbox"
+          className="size-4 cursor-pointer rounded accent-primary"
+          disabled={pending}
+          {...register('remember')}
+        />
+        Ingat saya
+      </label>
 
       {loginMutation.error && (
         <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">

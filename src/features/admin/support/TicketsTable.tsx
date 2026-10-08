@@ -1,27 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { adminSupportApi } from '@/lib/api/support';
-import { formatDate } from '@/lib/utils';
-import { buttonVariants } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusTabs } from '@/components/shared/StatusTabs';
 import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
-import { TableState } from '@/components/shared/TableState';
-import { StatusBadge } from '@/components/shared/StatusBadge';
-
-const STATUS_TABS = [
-  { value: '', label: 'Semua' },
-  { value: 'OPEN', label: 'Terbuka' },
-  { value: 'IN_PROGRESS', label: 'Dalam Proses' },
-  { value: 'RESOLVED', label: 'Selesai' },
-  { value: 'CLOSED', label: 'Ditutup' },
-];
+import { TicketList } from '@/features/support/TicketList';
+import { TICKET_STATUS_TABS } from '@/features/support/utils';
 
 export default function TicketsTable() {
   const [page, setPage] = useState(1);
@@ -38,7 +25,7 @@ export default function TicketsTable() {
 
   return (
     <>
-      <PageHeader title="Support Tiket" description="Pertanyaan dan kendala dari merchant.">
+      <PageHeader title="Support Tiket" description="Pertanyaan dan kendala dari merchant, terbaru di atas.">
         <SearchForm
           placeholder="Cari subjek atau merchant..."
           onSearch={(value) => {
@@ -49,7 +36,7 @@ export default function TicketsTable() {
       </PageHeader>
 
       <StatusTabs
-        tabs={STATUS_TABS}
+        tabs={TICKET_STATUS_TABS}
         value={status}
         onChange={(value) => {
           setStatus(value);
@@ -57,50 +44,14 @@ export default function TicketsTable() {
         }}
       />
 
-      <Card className="py-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Toko / Merchant</TableHead>
-              <TableHead>Subjek</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Prioritas</TableHead>
-              <TableHead>Pesan</TableHead>
-              <TableHead>Terakhir Diperbarui</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableState colSpan={8} isLoading={isLoading} error={error} isEmpty={!tickets.length} emptyText="Tidak ada tiket ditemukan" />
-            {tickets.map((t) => (
-              <TableRow key={t.id}>
-                <TableCell className="text-muted-foreground">#{t.id}</TableCell>
-                <TableCell>
-                  <p className="font-medium">{t.store?.name ?? '-'}</p>
-                  <p className="text-xs text-muted-foreground">{t.store?.user?.name ?? '-'}</p>
-                </TableCell>
-                <TableCell className="max-w-56 truncate" title={t.subject}>
-                  {t.subject}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={t.status} />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={t.priority} />
-                </TableCell>
-                <TableCell className="text-muted-foreground">{t._count?.messages ?? 0}</TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(t.updatedAt)}</TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/admin/support/${t.id}`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-                    Lihat
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      <TicketList
+        tickets={tickets}
+        viewer="ADMIN"
+        hrefFor={(t) => `/admin/support/${t.id}`}
+        isLoading={isLoading}
+        error={error}
+        empty={search || status ? 'Tidak ada tiket yang cocok dengan filter.' : 'Belum ada tiket dari merchant.'}
+      />
 
       <Pagination page={page} totalPages={data?.pagination.totalPages ?? 1} onPageChange={setPage} />
     </>

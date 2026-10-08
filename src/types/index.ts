@@ -61,6 +61,7 @@ export interface Store {
   wdExtraFeeValue: number | null;
   wdMaxAmount: number | null;
   paymentGateway: string;
+  autoWdExcluded: boolean;
   createdAt: string;
 }
 
