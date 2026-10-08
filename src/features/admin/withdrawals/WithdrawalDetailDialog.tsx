@@ -93,7 +93,8 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
             </Row>
             {mode === 'detail' && (
               <>
-                <Row label="Catatan Merchant">{w.note || '-'}</Row>
+                <Row label="Jenis">{w.isAuto ? 'Otomatis (sistem)' : 'Manual (merchant)'}</Row>
+                <Row label={w.isAuto ? 'Catatan Sistem' : 'Catatan Merchant'}>{w.note || '-'}</Row>
                 <Row label="Catatan Admin">
                   {w.adminNote || '-'}
                   {w.adminPhotoUrl && (

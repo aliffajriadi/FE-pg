@@ -1,7 +1,7 @@
 // Isi dokumentasi API publik (dipindahkan dari docs.html lama).
 
 export const START_STEPS = [
-  'Login ke Dashboard dan buka menu Pengaturan & API.',
+  'Login ke Dashboard dan buka menu Integrasi API.',
   'Buat Proyek baru (opsional), misalnya "App Kasir" atau "Website Toko".',
   'Tambahkan API Key ke proyek tersebut dan salin nilainya.',
   'Tambahkan Webhook URL ke proyek yang sama agar sistem tahu ke mana notifikasi pembayaran dikirim.',

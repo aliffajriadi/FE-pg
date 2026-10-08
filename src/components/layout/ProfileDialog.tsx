@@ -5,6 +5,8 @@ import { LogOut, Pencil } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { TierBadge } from '@/components/shared/TierBadge';
+import type { MerchantTier } from '@/lib/api/merchant';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { formatDate } from '@/lib/utils';
 import type { Store, User } from '@/types';
@@ -23,12 +25,14 @@ export function ProfileDialog({
   onOpenChange,
   user,
   store,
+  tier,
   onLogout,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user?: User;
   store?: Store | null;
+  tier?: MerchantTier | null;
   onLogout: () => void;
 }) {
   const isAdmin = user?.role === 'ADMIN';
@@ -45,7 +49,10 @@ export function ProfileDialog({
           <div className="min-w-0 space-y-1">
             <p className="truncate text-lg font-semibold">{user?.name}</p>
             <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
-            <ToneBadge tone={isAdmin ? 'info' : 'neutral'}>{isAdmin ? 'Admin' : 'Merchant'}</ToneBadge>
+            <span className="flex flex-wrap items-center gap-1.5">
+              <ToneBadge tone={isAdmin ? 'info' : 'neutral'}>{isAdmin ? 'Admin' : 'Merchant'}</ToneBadge>
+              {tier && <TierBadge tier={tier} />}
+            </span>
           </div>
         </div>
 
@@ -65,7 +72,7 @@ export function ProfileDialog({
             <LogOut /> Keluar
           </Button>
           {!isAdmin && (
-            <Link href="/dashboard/settings" onClick={() => onOpenChange(false)} className={buttonVariants()}>
+            <Link href="/dashboard/account" onClick={() => onOpenChange(false)} className={buttonVariants()}>
               <Pencil /> Ubah Profil
             </Link>
           )}

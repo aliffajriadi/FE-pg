@@ -95,6 +95,7 @@ export interface Withdrawal {
   note: string | null;
   adminNote: string | null;
   adminPhotoUrl: string | null;
+  isAuto?: boolean;
   createdAt: string;
 }
 

@@ -14,6 +14,38 @@ import type {
 
 type Msg = ApiResponse<unknown>;
 
+export interface AutoWithdrawalInfo {
+  enabled: boolean;
+  hours: number;
+  customHours: number | null;
+  minHours: number;
+  maxHours: number;
+  bankAccountId: number | null;
+  bankAccount: BankAccount | null;
+  nextRunAt: string | null;
+}
+
+export type TierColor = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+export type TierBasis = 'COUNT' | 'VOLUME';
+
+export interface MerchantTier {
+  name: string;
+  min: number;
+  color: TierColor;
+}
+
+export interface MerchantStats {
+  totalVolume: number;
+  paidCount: number;
+  tier: {
+    basis: TierBasis;
+    value: number;
+    current: MerchantTier | null;
+    next: MerchantTier | null;
+    remaining: number;
+  };
+}
+
 export interface DashboardData {
   availableBalance: number;
   pendingBalance: number;
@@ -25,6 +57,7 @@ export interface DashboardData {
   wdExtraFeeType: FeeType | null;
   wdExtraFeeValue: number | null;
   wdMaxAmount: number | null;
+  autoWithdrawal: AutoWithdrawalInfo | null;
   totalOrders: number;
   paidOrders: number;
   todayStats: {
@@ -51,6 +84,7 @@ const json = (method: string, body?: unknown): RequestInit => ({
 
 export const merchantApi = {
   getDashboard: () => fetchApi<ApiResponse<DashboardData>>('/merchant/dashboard'),
+  getStats: () => fetchApi<ApiResponse<MerchantStats>>('/merchant/stats'),
   getBanner: () => fetchApi<ApiResponse<SystemSetting | null>>('/merchant/banner'),
 
   // Transaksi
@@ -92,9 +126,14 @@ export const merchantApi = {
   deleteBankAccount: (id: number) => fetchApi<Msg>(`/merchant/bank-accounts/${id}`, json('DELETE')),
 
   // Penarikan
-  getWithdrawals: (params: { page?: number; search?: string }) =>
+  getWithdrawals: (params: { page?: number; search?: string; status?: string }) =>
     fetchApi<PaginatedResponse<Withdrawal>>(`/merchant/withdrawals${toQuery({ ...params })}`),
   createWithdrawal: (body: { amount: number; bankAccountId: number; note?: string }) =>
     fetchApi<Msg>('/merchant/withdrawals', json('POST', body)),
   cancelWithdrawal: (id: number) => fetchApi<Msg>(`/merchant/withdrawals/${id}`, json('DELETE')),
+
+  // Penarikan otomatis
+  getAutoWithdrawal: () => fetchApi<ApiResponse<AutoWithdrawalInfo>>('/merchant/auto-withdrawal'),
+  updateAutoWithdrawal: (body: { hours?: number; bankAccountId?: number | null }) =>
+    fetchApi<ApiResponse<AutoWithdrawalInfo>>('/merchant/auto-withdrawal', json('PATCH', body)),
 };

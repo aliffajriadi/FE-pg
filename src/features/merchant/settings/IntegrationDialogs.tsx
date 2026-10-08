@@ -221,7 +221,7 @@ export function RegenerateSecretDialog({ webhookId }: { webhookId: number }) {
     <>
       <Button
         variant="outline"
-        size="sm"
+        size="xs"
         onClick={() => {
           setSecret(null);
           setOpen(true);

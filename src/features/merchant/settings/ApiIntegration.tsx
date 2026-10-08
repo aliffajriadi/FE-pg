@@ -2,11 +2,26 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Box, Eye, EyeOff, KeyRound, Layers, Loader2, Send, Trash2, Webhook as WebhookIcon } from 'lucide-react';
+import {
+  Box,
+  Check,
+  ChevronDown,
+  Copy,
+  Eye,
+  EyeOff,
+  Globe,
+  KeyRound,
+  Loader2,
+  Send,
+  Trash2,
+  Webhook as WebhookIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import type { ApiKey, Webhook } from '@/types';
@@ -22,17 +37,40 @@ function ActiveBadge({ active }: { active: boolean }) {
   return <ToneBadge tone={active ? 'success' : 'danger'}>{active ? 'Aktif' : 'Nonaktif'}</ToneBadge>;
 }
 
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-lg bg-muted/50 p-4 text-center text-sm text-muted-foreground">{children}</p>;
+function CopyButton({ value, label = 'Salin' }: { value: string; label?: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error('Gagal menyalin, salin secara manual');
+    }
+  };
+
+  return (
+    <Button type="button" variant="ghost" size="icon-xs" onClick={copy} aria-label={label}>
+      {copied ? <Check className="text-emerald-600" /> : <Copy />}
+    </Button>
+  );
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return <p className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground">{children}</p>;
 }
 
 function ApiKeyItem({ apiKey }: { apiKey: ApiKey }) {
   return (
-    <div className="space-y-1 rounded-lg border p-3">
+    <div className="space-y-1 rounded-lg border bg-background p-3">
       <div className="flex items-center gap-2 text-sm font-medium">
-        {apiKey.name} <ActiveBadge active={apiKey.isActive} />
+        <span className="truncate">{apiKey.name}</span> <ActiveBadge active={apiKey.isActive} />
       </div>
-      <code className="block font-mono text-xs break-all text-muted-foreground">{apiKey.key}</code>
+      <div className="flex items-center gap-1">
+        <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{apiKey.key}</code>
+        <CopyButton value={apiKey.key} label="Salin API Key" />
+      </div>
     </div>
   );
 }
@@ -48,14 +86,16 @@ function WebhookItem({ webhook }: { webhook: Webhook }) {
   const remove = useApiMutation(() => merchantApi.deleteWebhook(webhook.id), options);
 
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="space-y-2 rounded-lg border bg-background p-3">
       <div className="flex items-center gap-2 text-sm font-medium">
-        {webhook.name} <ActiveBadge active={webhook.isActive} />
+        <span className="truncate">{webhook.name}</span> <ActiveBadge active={webhook.isActive} />
       </div>
-      <code className="block font-mono text-xs break-all text-muted-foreground">{webhook.url}</code>
-      <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">Secret:</span>
-        <code className={`min-w-0 truncate font-mono ${showSecret ? '' : 'blur-sm select-none'}`}>{webhook.secret}</code>
+      <code className="block truncate font-mono text-xs text-muted-foreground" title={webhook.url}>
+        {webhook.url}
+      </code>
+      <div className="flex items-center gap-1 text-xs">
+        <span className="shrink-0 text-muted-foreground">Secret:</span>
+        <code className={`min-w-0 flex-1 truncate font-mono ${showSecret ? '' : 'blur-sm select-none'}`}>{webhook.secret}</code>
         <Button
           variant="ghost"
           size="icon-xs"
@@ -64,17 +104,21 @@ function WebhookItem({ webhook }: { webhook: Webhook }) {
         >
           {showSecret ? <EyeOff /> : <Eye />}
         </Button>
+        <CopyButton value={webhook.secret} label="Salin secret" />
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => test.mutate()} disabled={test.isPending}>
+      <div className="flex flex-wrap gap-1.5 border-t pt-2">
+        <Button variant="outline" size="xs" onClick={() => test.mutate()} disabled={test.isPending}>
           {test.isPending ? <Loader2 className="animate-spin" /> : <Send />} Tes
         </Button>
-        <Button variant="outline" size="sm" onClick={() => toggle.mutate()} disabled={toggle.isPending}>
+        <Button variant="outline" size="xs" onClick={() => toggle.mutate()} disabled={toggle.isPending}>
           {webhook.isActive ? 'Jeda' : 'Aktifkan'}
         </Button>
         <RegenerateSecretDialog webhookId={webhook.id} />
         <ConfirmAction
           destructive
+          variant="ghost"
+          size="xs"
+          className="ml-auto text-destructive"
           title={`Hapus webhook "${webhook.name}"?`}
           description="Webhook ini tidak akan menerima notifikasi lagi."
           confirmLabel="Hapus"
@@ -87,7 +131,46 @@ function WebhookItem({ webhook }: { webhook: Webhook }) {
   );
 }
 
-export function ProjectsCard() {
+/** Kolom daftar API Key / Webhook dengan tombol tambah di judulnya. */
+function ItemColumn({
+  icon: Icon,
+  title,
+  action,
+  children,
+}: {
+  icon: typeof KeyRound;
+  title: string;
+  action: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-w-0 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+          <Icon className="size-3.5" /> {title}
+        </p>
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CountChip({ icon: Icon, count, label }: { icon: typeof KeyRound; count: number; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+      <Icon className="size-3" /> {count} {label}
+    </span>
+  );
+}
+
+const ONBOARDING_STEPS = [
+  'Buat proyek untuk tiap aplikasi atau website Anda.',
+  'Tambahkan API Key untuk membuat invoice dari aplikasi tersebut.',
+  'Tambahkan Webhook agar aplikasi menerima notifikasi pembayaran.',
+];
+
+export function ProjectsSection() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ['merchant-projects'],
     queryFn: merchantApi.getProjects,
@@ -96,135 +179,152 @@ export function ProjectsCard() {
   const remove = useApiMutation(merchantApi.deleteProject, { invalidate: INTEGRATION_KEYS });
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <CardTitle className="flex items-center gap-2">
-            <Layers className="size-4" /> Proyek
-          </CardTitle>
-          <CardDescription>
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold">
+            Proyek {projects?.length ? <span className="text-muted-foreground">({projects.length})</span> : null}
+          </h2>
+          <p className="text-sm text-muted-foreground">
             Tiap proyek punya API Key dan Webhook sendiri. Notifikasi hanya dikirim ke webhook proyek yang membuat invoice.
-          </CardDescription>
+          </p>
         </div>
         <CreateProjectDialog />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat proyek...</p>
-        ) : error ? (
-          <p className="text-sm text-destructive">Gagal memuat proyek: {error.message}</p>
-        ) : !projects?.length ? (
-          <Empty>Belum ada proyek. Klik &quot;Proyek Baru&quot; untuk mulai.</Empty>
-        ) : (
-          projects.map((project) => (
-            <div key={project.id} className="overflow-hidden rounded-xl border">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/40 px-4 py-3">
-                <div className="flex items-center gap-2 font-semibold">
-                  <Box className="size-4 text-primary" /> {project.name} <ActiveBadge active={project.isActive} />
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-32 rounded-xl" />
+      ) : error ? (
+        <p className="text-sm text-destructive">Gagal memuat proyek: {error.message}</p>
+      ) : !projects?.length ? (
+        <Card className="border-dashed">
+          <CardContent className="space-y-4 py-4">
+            <p className="font-medium">Mulai integrasi dengan membuat proyek</p>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              {ONBOARDING_STEPS.map((step, i) => (
+                <li key={step} className="flex gap-3">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {i + 1}
+                  </span>
+                  {step}
+                </li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {projects.map((project, index) => (
+            <details key={project.id} className="group overflow-hidden rounded-xl border bg-card" open={index === 0}>
+              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+                <Box className="size-4 shrink-0 text-primary" />
+                <span className="font-semibold">{project.name}</span>
+                <ActiveBadge active={project.isActive} />
+                <span className="flex gap-1.5">
+                  <CountChip icon={KeyRound} count={project.apiKeys.length} label="API Key" />
+                  <CountChip icon={WebhookIcon} count={project.webhooks.length} label="Webhook" />
+                </span>
+                <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="space-y-4 border-t bg-muted/20 p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <ItemColumn
+                    icon={KeyRound}
+                    title="API Key"
+                    action={<CreateApiKeyDialog label="Tambah" variant="outline" projectId={project.id} projectName={project.name} />}
+                  >
+                    {project.apiKeys.length ? (
+                      project.apiKeys.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
+                    ) : (
+                      <EmptyLine>Belum ada API Key</EmptyLine>
+                    )}
+                  </ItemColumn>
+                  <ItemColumn
+                    icon={WebhookIcon}
+                    title="Webhook"
+                    action={<CreateWebhookDialog label="Tambah" variant="outline" projectId={project.id} projectName={project.name} />}
+                  >
+                    {project.webhooks.length ? (
+                      project.webhooks.map((w) => <WebhookItem key={w.id} webhook={w} />)
+                    ) : (
+                      <EmptyLine>Belum ada Webhook</EmptyLine>
+                    )}
+                  </ItemColumn>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <CreateApiKeyDialog label="API Key" variant="outline" projectId={project.id} projectName={project.name} />
-                  <CreateWebhookDialog label="Webhook" variant="outline" projectId={project.id} projectName={project.name} />
+                <div className="flex justify-end border-t pt-3">
                   <ConfirmAction
                     destructive
+                    variant="ghost"
+                    className="text-destructive"
                     title={`Hapus proyek "${project.name}"?`}
                     description="API Key dan Webhook proyek ini tidak terhapus, hanya dilepas dari proyek dan menjadi global."
                     confirmLabel="Hapus Proyek"
                     onConfirm={() => remove.mutateAsync(project.id)}
                   >
-                    Hapus
+                    <Trash2 /> Hapus Proyek
                   </ConfirmAction>
                 </div>
               </div>
-              <div className="grid gap-4 p-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                    <KeyRound className="size-3" /> API KEY
-                  </p>
-                  {project.apiKeys.length ? (
-                    project.apiKeys.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">Belum ada API Key</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <p className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-                    <WebhookIcon className="size-3" /> WEBHOOK
-                  </p>
-                  {project.webhooks.length ? (
-                    project.webhooks.map((w) => <WebhookItem key={w.id} webhook={w} />)
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">Belum ada Webhook</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+            </details>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
-export function GlobalWebhooksCard() {
-  const { data, isLoading } = useQuery({
+/** API Key & Webhook tanpa proyek, disembunyikan di bagian yang bisa dibuka. */
+export function GlobalIntegrationSection() {
+  const apiKeys = useQuery({
+    queryKey: ['merchant-api-keys'],
+    queryFn: merchantApi.getApiKeys,
+    select: (res) => res.data.filter((k) => !k.projectId),
+  });
+  const webhooks = useQuery({
     queryKey: ['merchant-webhooks'],
     queryFn: merchantApi.getWebhooks,
     select: (res) => res.data.filter((w) => !w.projectId),
   });
 
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <CardTitle className="flex items-center gap-2">
-            <WebhookIcon className="size-4" /> Webhook Global
-          </CardTitle>
-          <CardDescription>Dikirim untuk invoice yang dibuat tanpa proyek (misal dari Dashboard).</CardDescription>
-        </div>
-        <CreateWebhookDialog label="Tambah" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat...</p>
-        ) : data?.length ? (
-          data.map((w) => <WebhookItem key={w.id} webhook={w} />)
-        ) : (
-          <Empty>Belum ada webhook global.</Empty>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-export function GlobalApiKeysCard() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['merchant-api-keys'],
-    queryFn: merchantApi.getApiKeys,
-    select: (res) => res.data.filter((k) => !k.projectId),
-  });
+  const keyCount = apiKeys.data?.length ?? 0;
+  const webhookCount = webhooks.data?.length ?? 0;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div className="space-y-1.5">
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="size-4" /> API Key Global
-          </CardTitle>
-          <CardDescription>Tidak terikat proyek tertentu.</CardDescription>
-        </div>
-        <CreateApiKeyDialog label="Buat Baru" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Memuat...</p>
-        ) : data?.length ? (
-          data.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
-        ) : (
-          <Empty>Belum ada API Key global.</Empty>
-        )}
-      </CardContent>
-    </Card>
+    <details className="group overflow-hidden rounded-xl border bg-card">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+        <Globe className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0">
+          <span className="block font-medium">Integrasi Global (tanpa proyek)</span>
+          <span className="block text-xs text-muted-foreground">
+            Untuk invoice yang dibuat tanpa proyek, misalnya dari Dashboard.
+          </span>
+        </span>
+        <span className="flex gap-1.5">
+          <CountChip icon={KeyRound} count={keyCount} label="API Key" />
+          <CountChip icon={WebhookIcon} count={webhookCount} label="Webhook" />
+        </span>
+        <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="grid gap-4 border-t bg-muted/20 p-4 md:grid-cols-2">
+        <ItemColumn icon={KeyRound} title="API Key Global" action={<CreateApiKeyDialog label="Tambah" variant="outline" />}>
+          {apiKeys.isLoading ? (
+            <Skeleton className="h-16 rounded-lg" />
+          ) : keyCount ? (
+            apiKeys.data!.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
+          ) : (
+            <EmptyLine>Belum ada API Key global</EmptyLine>
+          )}
+        </ItemColumn>
+        <ItemColumn icon={WebhookIcon} title="Webhook Global" action={<CreateWebhookDialog label="Tambah" variant="outline" />}>
+          {webhooks.isLoading ? (
+            <Skeleton className="h-16 rounded-lg" />
+          ) : webhookCount ? (
+            webhooks.data!.map((w) => <WebhookItem key={w.id} webhook={w} />)
+          ) : (
+            <EmptyLine>Belum ada webhook global</EmptyLine>
+          )}
+        </ItemColumn>
+      </div>
+    </details>
   );
 }
-

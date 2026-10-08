@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, Plus, Trash2 } from 'lucide-react';
 import { adminApi, type AdminSettings } from '@/lib/api/admin';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { requiredNumber } from '@/lib/validations/common';
@@ -20,6 +20,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import { TIER_STYLE, TierBadge } from '@/components/shared/TierBadge';
+import type { TierColor } from '@/lib/api/merchant';
 
 const GATEWAY_OPTIONS = [
   { value: 'PAKASIR', label: 'Pakasir (QRIS via Pakasir SDK)' },
@@ -41,6 +43,13 @@ const MANUAL_METHOD_OPTIONS = [
   { value: 'all', label: 'Semua (DANA, ShopeePay & GoPay)' },
 ];
 
+const TIER_COLOR_OPTIONS = (Object.keys(TIER_STYLE) as TierColor[]).map((value) => ({ value, label: TIER_STYLE[value].label }));
+
+const TIER_BASIS_OPTIONS = [
+  { value: 'COUNT', label: 'Jumlah transaksi berhasil' },
+  { value: 'VOLUME', label: 'Total volume transaksi (Rp)' },
+];
+
 const settingsSchema = z.object({
   defaultPaymentGatewayValue: z.string(),
   defaultManualQrisValue: z.string(),
@@ -54,6 +63,25 @@ const settingsSchema = z.object({
   defaultWebhookLimitValue: requiredNumber(),
   bannerIsActive: z.boolean(),
   bannerValue: z.string(),
+  autoWdEnabledValue: z.boolean(),
+  autoWdMaxHoursValue: z
+    .number({ error: 'Wajib diisi' })
+    .int('Harus bilangan bulat')
+    .min(1, 'Minimal 1 jam')
+    .max(72, 'Maksimal 72 jam (3 hari)'),
+  merchantTiersValue: z.object({
+    basis: z.enum(['COUNT', 'VOLUME']),
+    tiers: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1, 'Nama wajib diisi'),
+          min: z.number({ error: 'Wajib diisi' }).int('Harus bilangan bulat').min(0, 'Tidak boleh negatif'),
+          color: z.enum(['bronze', 'silver', 'gold', 'platinum', 'diamond']),
+        })
+      )
+      .min(1, 'Minimal 1 level')
+      .max(10, 'Maksimal 10 level'),
+  }),
 });
 type SettingsForm = z.infer<typeof settingsSchema>;
 
@@ -73,6 +101,9 @@ function toFormValues(s: AdminSettings): SettingsForm {
     defaultWebhookLimitValue: Number(s.defaultWebhookLimit?.value ?? 5),
     bannerIsActive: !!s.banner?.isActive,
     bannerValue: s.banner?.value || '',
+    autoWdEnabledValue: s.autoWdEnabled?.value === 'true',
+    autoWdMaxHoursValue: Number(s.autoWdMaxHours?.value ?? 72),
+    merchantTiersValue: s.merchantTiers ?? { basis: 'COUNT', tiers: [{ name: 'Bronze', min: 0, color: 'bronze' }] },
   };
 }
 
@@ -88,6 +119,16 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
   const mutation = useApiMutation((data: SettingsForm) => adminApi.updateSettings(data), {
     successMessage: 'Pengaturan sistem berhasil disimpan',
     invalidate: [['admin-settings']],
+  });
+
+  const tierFields = useFieldArray({ control: form.control, name: 'merchantTiersValue.tiers' });
+  const [tierBasis, tierPreview] = useWatch({
+    control: form.control,
+    name: ['merchantTiersValue.basis', 'merchantTiersValue.tiers'],
+  });
+
+  const runAutoWd = useApiMutation(() => adminApi.runAutoWithdrawals(), {
+    invalidate: [['admin-withdrawals']],
   });
 
   const qrisOptions = settings.manualQrisList.map((q) => ({ value: String(q.id), label: q.name }));
@@ -212,6 +253,140 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           <FormField label="Default Limit Webhook" htmlFor="default-webhook" error={errors.defaultWebhookLimitValue?.message}>
             <Input id="default-webhook" type="number" min={0} {...form.register('defaultWebhookLimitValue', { valueAsNumber: true })} />
           </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Auto Penarikan</CardTitle>
+          <CardDescription>
+            Saldo Utama merchant yang mengendap ditarik otomatis ke rekening yang disetujui. Merchant bisa memilih interval
+            lebih pendek, tapi tidak bisa membatalkan penarikan otomatis.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Controller
+            control={form.control}
+            name="autoWdEnabledValue"
+            render={({ field }) => (
+              <Label className="flex items-center gap-3 rounded-lg border p-3">
+                <Switch checked={field.value} onCheckedChange={field.onChange} />
+                <span>
+                  <span className="block font-medium">Aktifkan Auto Penarikan</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Saat diaktifkan, siklus semua merchant dimulai dari saat itu.
+                  </span>
+                </span>
+              </Label>
+            )}
+          />
+          <FormField
+            label="Maksimal Pengendapan Saldo (jam)"
+            htmlFor="auto-wd-max-hours"
+            error={errors.autoWdMaxHoursValue?.message}
+            hint="1 - 72 jam. Pilihan merchant yang lebih besar dari nilai ini akan diturunkan otomatis."
+          >
+            <Input
+              id="auto-wd-max-hours"
+              type="number"
+              min={1}
+              max={72}
+              {...form.register('autoWdMaxHoursValue', { valueAsNumber: true })}
+            />
+          </FormField>
+          <Button type="button" variant="outline" onClick={() => runAutoWd.mutate()} disabled={runAutoWd.isPending}>
+            {runAutoWd.isPending ? <Loader2 className="animate-spin" /> : null} Jalankan Pengecekan Sekarang
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Level Merchant</CardTitle>
+          <CardDescription>
+            Level ditampilkan di halaman Akun merchant. Merchant mendapat level tertinggi yang batas minimalnya sudah tercapai.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FormField label="Dasar Penentuan Level" htmlFor="tier-basis">
+            <Controller
+              control={form.control}
+              name="merchantTiersValue.basis"
+              render={({ field }) => (
+                <SimpleSelect id="tier-basis" value={field.value} onValueChange={field.onChange} options={TIER_BASIS_OPTIONS} />
+              )}
+            />
+          </FormField>
+
+          <div className="space-y-2">
+            <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.5fr)_auto] gap-2 px-1 text-xs font-medium text-muted-foreground sm:grid">
+              <span>Nama Level</span>
+              <span>Minimal {tierBasis === 'VOLUME' ? 'Volume (Rp)' : 'Transaksi'}</span>
+              <span>Warna</span>
+              <span className="w-7" />
+            </div>
+            {tierFields.fields.map((field, index) => {
+              const err = errors.merchantTiersValue?.tiers?.[index];
+              return (
+                <div
+                  key={field.id}
+                  className="grid grid-cols-2 gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.5fr)_auto] sm:items-start sm:border-0 sm:p-0"
+                >
+                  <div className="col-span-2 space-y-1 sm:col-span-1">
+                    <Input placeholder="Contoh: Gold" aria-label="Nama level" {...form.register(`merchantTiersValue.tiers.${index}.name`)} />
+                    {err?.name && <p className="text-xs text-destructive">{err.name.message}</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      aria-label="Batas minimal"
+                      {...form.register(`merchantTiersValue.tiers.${index}.min`, { valueAsNumber: true })}
+                    />
+                    {err?.min && <p className="text-xs text-destructive">{err.min.message}</p>}
+                  </div>
+                  <Controller
+                    control={form.control}
+                    name={`merchantTiersValue.tiers.${index}.color`}
+                    render={({ field: f }) => <SimpleSelect value={f.value} onValueChange={f.onChange} options={TIER_COLOR_OPTIONS} />}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="col-span-2 justify-self-end text-destructive sm:col-span-1"
+                    disabled={tierFields.fields.length <= 1}
+                    onClick={() => tierFields.remove(index)}
+                    aria-label="Hapus level"
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              );
+            })}
+            {errors.merchantTiersValue?.tiers?.root?.message && (
+              <p className="text-xs text-destructive">{errors.merchantTiersValue.tiers.root.message}</p>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={tierFields.fields.length >= 10}
+              onClick={() => tierFields.append({ name: '', min: 0, color: 'diamond' })}
+            >
+              <Plus /> Tambah Level
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+            Pratinjau:
+            {[...(tierPreview ?? [])]
+              .filter((t) => t?.name?.trim())
+              .sort((a, b) => (a.min || 0) - (b.min || 0))
+              .map((t, i) => (
+                <TierBadge key={`${t.name}-${i}`} tier={{ name: t.name, min: t.min, color: t.color }} />
+              ))}
+          </div>
         </CardContent>
       </Card>
 

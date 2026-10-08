@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Banknote,
+  Code2,
+  UserRound,
   BookOpen,
   LifeBuoy,
   Wallet,
@@ -27,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from './ThemeToggle';
 import { Logo } from '@/components/shared/Logo';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { TierBadge } from '@/components/shared/TierBadge';
 import { ProfileDialog } from './ProfileDialog';
 import {
   AlertDialog,
@@ -39,6 +42,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useLogout, useMe } from '@/features/auth/hooks';
 import { adminSupportApi } from '@/lib/api/support';
+import { merchantApi } from '@/lib/api/merchant';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
@@ -69,7 +73,8 @@ const MERCHANT_NAV: NavItem[] = [
   { href: '/dashboard/orders', label: 'Transaksi', icon: FileText },
   { href: '/dashboard/withdrawals', label: 'Tarik Saldo', icon: Wallet },
   { href: '/dashboard/bank-accounts', label: 'Rekening Saya', icon: Landmark },
-  { href: '/dashboard/settings', label: 'Pengaturan & API', icon: Settings },
+  { href: '/dashboard/settings', label: 'Integrasi API', icon: Code2 },
+  { href: '/dashboard/account', label: 'Akun Saya', icon: UserRound },
   { href: '/dashboard/support', label: 'Bantuan / Support', icon: LifeBuoy },
   { href: '/docs', label: 'Dokumentasi API', icon: BookOpen, external: true },
 ];
@@ -96,6 +101,14 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
     select: (res) => res.data.count,
     enabled: isAdmin,
     refetchInterval: 60 * 1000,
+  });
+
+  const { data: merchantTier } = useQuery({
+    queryKey: ['merchant-stats'],
+    queryFn: merchantApi.getStats,
+    select: (res) => res.data.tier.current,
+    enabled: !isAdmin,
+    staleTime: 5 * 60 * 1000,
   });
 
   const navItems = (isAdmin ? ADMIN_NAV : MERCHANT_NAV).map((item) =>
@@ -163,7 +176,11 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
           <UserAvatar name={user?.name} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium">{user?.name ?? '...'}</span>
-            <span className="block truncate text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Merchant'}</span>
+            {merchantTier ? (
+              <TierBadge tier={merchantTier} className="mt-0.5 px-2 py-0 text-[11px]" />
+            ) : (
+              <span className="block truncate text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Merchant'}</span>
+            )}
           </span>
         </button>
         <ThemeToggle />
@@ -220,6 +237,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
         onOpenChange={setProfileOpen}
         user={user}
         store={me?.store}
+        tier={merchantTier}
         onLogout={() => {
           setProfileOpen(false);
           setConfirmLogout(true);

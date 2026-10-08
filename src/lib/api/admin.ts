@@ -1,4 +1,5 @@
 import { fetchApi, fetchBlob, toQuery } from './client';
+import type { MerchantTier, TierBasis } from './merchant';
 import type {
   AdminLog,
   ApiResponse,
@@ -21,6 +22,7 @@ export interface ListParams {
   limit?: number;
   search?: string;
   status?: string;
+  type?: string;
 }
 
 export interface DashboardStats {
@@ -64,6 +66,9 @@ export interface AdminSettings {
   defaultWebhookLimit: SystemSetting;
   defaultPaymentGateway: SystemSetting;
   defaultManualQris: SystemSetting;
+  autoWdEnabled: SystemSetting;
+  autoWdMaxHours: SystemSetting;
+  merchantTiers: { basis: TierBasis; tiers: MerchantTier[] };
   manualQrisList: ManualQris[];
 }
 
@@ -137,6 +142,7 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/withdrawals/${id}/mark-paid`, { method: 'POST', body }),
   rejectWithdrawal: (id: number, body: FormData) =>
     fetchApi<Msg>(`/admin/withdrawals/${id}/reject`, { method: 'POST', body }),
+  runAutoWithdrawals: () => fetchApi<ApiResponse<Record<string, number | boolean>>>('/admin/auto-withdrawals/run', json('POST')),
 
   // Rekening bank
   getBankAccounts: (params: ListParams) =>

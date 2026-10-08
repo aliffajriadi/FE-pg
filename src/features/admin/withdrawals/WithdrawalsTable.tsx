@@ -12,6 +12,8 @@ import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import { Badge } from '@/components/ui/badge';
 import { WithdrawalDetailDialog } from './WithdrawalDetailDialog';
 
 const STATUS_TABS = [
@@ -22,14 +24,21 @@ const STATUS_TABS = [
   { value: 'CANCELLED', label: 'Dibatalkan' },
 ];
 
+const TYPE_OPTIONS = [
+  { value: 'ALL', label: 'Semua Jenis' },
+  { value: 'MANUAL', label: 'Manual' },
+  { value: 'AUTO', label: 'Otomatis' },
+];
+
 export default function WithdrawalsTable() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [type, setType] = useState('ALL');
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-withdrawals', { page, search, status }],
-    queryFn: () => adminApi.getWithdrawals({ page, search, status }),
+    queryKey: ['admin-withdrawals', { page, search, status, type }],
+    queryFn: () => adminApi.getWithdrawals({ page, search, status, type: type === 'ALL' ? '' : type }),
     placeholderData: keepPreviousData,
   });
 
@@ -38,6 +47,15 @@ export default function WithdrawalsTable() {
   return (
     <>
       <PageHeader title="Daftar Penarikan" description="Proses pengajuan penarikan saldo merchant.">
+        <SimpleSelect
+          className="w-40"
+          value={type}
+          onValueChange={(value) => {
+            setType(value || 'ALL');
+            setPage(1);
+          }}
+          options={TYPE_OPTIONS}
+        />
         <SearchForm
           placeholder="Cari toko, bank, rekening..."
           onSearch={(value) => {
@@ -90,7 +108,10 @@ export default function WithdrawalsTable() {
                   <p className="text-xs text-muted-foreground">{w.bankAccount}</p>
                 </TableCell>
                 <TableCell>
-                  <StatusBadge status={w.status} />
+                  <div className="flex flex-wrap items-center gap-1">
+                    <StatusBadge status={w.status} />
+                    {w.isAuto && <Badge variant="secondary">Otomatis</Badge>}
+                  </div>
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(w.createdAt)}</TableCell>
                 <TableCell className="text-right">

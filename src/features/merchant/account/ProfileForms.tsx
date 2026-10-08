@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Eye, EyeOff, KeyRound, UserRound } from 'lucide-react';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useMe } from '@/features/auth/hooks';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/shared/FormField';
 
@@ -41,6 +43,25 @@ function ProfileForm({ name, email }: { name: string; email: string }) {
   );
 }
 
+function PasswordInput(props: React.ComponentProps<typeof Input>) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <Input {...props} type={visible ? 'text' : 'password'} className="pr-9" />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-xs"
+        className="absolute top-1/2 right-1.5 -translate-y-1/2"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Sembunyikan password' : 'Tampilkan password'}
+      >
+        {visible ? <EyeOff /> : <Eye />}
+      </Button>
+    </div>
+  );
+}
+
 function PasswordForm() {
   const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
@@ -52,10 +73,10 @@ function PasswordForm() {
   return (
     <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
       <FormField label="Password Saat Ini" htmlFor="pass-current" error={errors.currentPassword?.message}>
-        <Input id="pass-current" type="password" autoComplete="current-password" {...form.register('currentPassword')} />
+        <PasswordInput id="pass-current" autoComplete="current-password" {...form.register('currentPassword')} />
       </FormField>
       <FormField label="Password Baru" htmlFor="pass-new" error={errors.newPassword?.message}>
-        <Input id="pass-new" type="password" autoComplete="new-password" {...form.register('newPassword')} />
+        <PasswordInput id="pass-new" autoComplete="new-password" {...form.register('newPassword')} />
       </FormField>
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? 'Menyimpan...' : 'Ubah Password'}
@@ -70,15 +91,30 @@ export function ProfileCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profil Pengguna</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <UserRound className="size-4 text-primary" /> Profil Pengguna
+        </CardTitle>
+        <CardDescription>Nama dan email yang dipakai untuk login dan notifikasi.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-8">
+      <CardContent>
         {/* key: isi ulang form setelah data profil termuat/berubah */}
         {me && <ProfileForm key={`${me.user.name}|${me.user.email}`} name={me.user.name} email={me.user.email} />}
-        <div className="space-y-4 border-t pt-6">
-          <h3 className="font-semibold">Ubah Password</h3>
-          <PasswordForm />
-        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function PasswordCard() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <KeyRound className="size-4 text-primary" /> Ubah Password
+        </CardTitle>
+        <CardDescription>Gunakan minimal 6 karakter. Jangan bagikan password ke siapa pun.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <PasswordForm />
       </CardContent>
     </Card>
   );
