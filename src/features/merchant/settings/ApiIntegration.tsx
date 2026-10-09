@@ -4,9 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Check,
   ChevronDown,
-  Copy,
   Eye,
   EyeOff,
   Globe,
@@ -16,7 +14,6 @@ import {
   Trash2,
   Webhook as WebhookIcon,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { Button } from '@/components/ui/button';
@@ -24,7 +21,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
-import type { ApiKey, Webhook } from '@/types';
+import { CopyButton } from '@/components/shared/CopyButton';
+import type { ApiKey, IntegrationMode, Webhook } from '@/types';
 import {
   CreateApiKeyDialog,
   CreateProjectDialog,
@@ -33,28 +31,11 @@ import {
   RegenerateSecretDialog,
 } from './IntegrationDialogs';
 
+const isKeyIn = (mode: IntegrationMode) => (k: ApiKey) => (k.isSandbox === true) === (mode === 'SANDBOX');
+const isWebhookIn = (mode: IntegrationMode) => (w: Webhook) => (w.mode === 'SANDBOX') === (mode === 'SANDBOX');
+
 function ActiveBadge({ active }: { active: boolean }) {
   return <ToneBadge tone={active ? 'success' : 'danger'}>{active ? 'Aktif' : 'Nonaktif'}</ToneBadge>;
-}
-
-function CopyButton({ value, label = 'Salin' }: { value: string; label?: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      toast.error('Gagal menyalin, salin secara manual');
-    }
-  };
-
-  return (
-    <Button type="button" variant="ghost" size="icon-xs" onClick={copy} aria-label={label}>
-      {copied ? <Check className="text-emerald-600" /> : <Copy />}
-    </Button>
-  );
 }
 
 function EmptyLine({ children }: { children: React.ReactNode }) {
@@ -170,12 +151,19 @@ const ONBOARDING_STEPS = [
   'Tambahkan Webhook agar aplikasi menerima notifikasi pembayaran.',
 ];
 
-export function ProjectsSection() {
-  const { data: projects, isLoading, error } = useQuery({
+export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
+  const sandbox = mode === 'SANDBOX';
+  const { data: rawProjects, isLoading, error } = useQuery({
     queryKey: ['merchant-projects'],
     queryFn: merchantApi.getProjects,
     select: (res) => res.data,
   });
+  // Tiap proyek hanya menampilkan key & webhook sesuai mode yang dipilih
+  const projects = rawProjects?.map((p) => ({
+    ...p,
+    apiKeys: p.apiKeys.filter(isKeyIn(mode)),
+    webhooks: p.webhooks.filter(isWebhookIn(mode)),
+  }));
   const remove = useApiMutation(merchantApi.deleteProject, { invalidate: INTEGRATION_KEYS });
 
   return (
@@ -186,7 +174,9 @@ export function ProjectsSection() {
             Proyek {projects?.length ? <span className="text-muted-foreground">({projects.length})</span> : null}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Tiap proyek punya API Key dan Webhook sendiri. Notifikasi hanya dikirim ke webhook proyek yang membuat invoice.
+            {sandbox
+              ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari yang live.'
+              : 'Tiap proyek punya API Key dan Webhook sendiri. Notifikasi hanya dikirim ke webhook proyek yang membuat invoice.'}
           </p>
         </div>
         <CreateProjectDialog />
@@ -231,23 +221,23 @@ export function ProjectsSection() {
                   <ItemColumn
                     icon={KeyRound}
                     title="API Key"
-                    action={<CreateApiKeyDialog label="Tambah" variant="outline" projectId={project.id} projectName={project.name} />}
+                    action={<CreateApiKeyDialog label="Tambah" variant="outline" mode={mode} projectId={project.id} projectName={project.name} />}
                   >
                     {project.apiKeys.length ? (
                       project.apiKeys.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
                     ) : (
-                      <EmptyLine>Belum ada API Key</EmptyLine>
+                      <EmptyLine>{sandbox ? 'Belum ada API Key sandbox' : 'Belum ada API Key'}</EmptyLine>
                     )}
                   </ItemColumn>
                   <ItemColumn
                     icon={WebhookIcon}
                     title="Webhook"
-                    action={<CreateWebhookDialog label="Tambah" variant="outline" projectId={project.id} projectName={project.name} />}
+                    action={<CreateWebhookDialog label="Tambah" variant="outline" mode={mode} projectId={project.id} projectName={project.name} />}
                   >
                     {project.webhooks.length ? (
                       project.webhooks.map((w) => <WebhookItem key={w.id} webhook={w} />)
                     ) : (
-                      <EmptyLine>Belum ada Webhook</EmptyLine>
+                      <EmptyLine>{sandbox ? 'Belum ada Webhook sandbox' : 'Belum ada Webhook'}</EmptyLine>
                     )}
                   </ItemColumn>
                 </div>
@@ -274,16 +264,17 @@ export function ProjectsSection() {
 }
 
 /** API Key & Webhook tanpa proyek, disembunyikan di bagian yang bisa dibuka. */
-export function GlobalIntegrationSection() {
+export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
+  const sandbox = mode === 'SANDBOX';
   const apiKeys = useQuery({
     queryKey: ['merchant-api-keys'],
     queryFn: merchantApi.getApiKeys,
-    select: (res) => res.data.filter((k) => !k.projectId),
+    select: (res) => res.data.filter((k) => !k.projectId && isKeyIn(mode)(k)),
   });
   const webhooks = useQuery({
     queryKey: ['merchant-webhooks'],
     queryFn: merchantApi.getWebhooks,
-    select: (res) => res.data.filter((w) => !w.projectId),
+    select: (res) => res.data.filter((w) => !w.projectId && isWebhookIn(mode)(w)),
   });
 
   const keyCount = apiKeys.data?.length ?? 0;
@@ -306,22 +297,22 @@ export function GlobalIntegrationSection() {
         <ChevronDown className="ml-auto size-4 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
       <div className="grid gap-4 border-t bg-muted/20 p-4 md:grid-cols-2">
-        <ItemColumn icon={KeyRound} title="API Key Global" action={<CreateApiKeyDialog label="Tambah" variant="outline" />}>
+        <ItemColumn icon={KeyRound} title={sandbox ? 'API Key Sandbox Global' : 'API Key Global'} action={<CreateApiKeyDialog label="Tambah" variant="outline" mode={mode} />}>
           {apiKeys.isLoading ? (
             <Skeleton className="h-16 rounded-lg" />
           ) : keyCount ? (
             apiKeys.data!.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
           ) : (
-            <EmptyLine>Belum ada API Key global</EmptyLine>
+            <EmptyLine>{sandbox ? 'Belum ada API Key sandbox global' : 'Belum ada API Key global'}</EmptyLine>
           )}
         </ItemColumn>
-        <ItemColumn icon={WebhookIcon} title="Webhook Global" action={<CreateWebhookDialog label="Tambah" variant="outline" />}>
+        <ItemColumn icon={WebhookIcon} title={sandbox ? 'Webhook Sandbox Global' : 'Webhook Global'} action={<CreateWebhookDialog label="Tambah" variant="outline" mode={mode} />}>
           {webhooks.isLoading ? (
             <Skeleton className="h-16 rounded-lg" />
           ) : webhookCount ? (
             webhooks.data!.map((w) => <WebhookItem key={w.id} webhook={w} />)
           ) : (
-            <EmptyLine>Belum ada webhook global</EmptyLine>
+            <EmptyLine>{sandbox ? 'Belum ada webhook sandbox global' : 'Belum ada webhook global'}</EmptyLine>
           )}
         </ItemColumn>
       </div>

@@ -39,7 +39,7 @@ export const ENDPOINTS: Endpoint[] = [
     summary: 'Buat invoice baru',
     body: [
       { field: 'productName', type: 'string', required: true, desc: 'Nama produk / deskripsi pembayaran' },
-      { field: 'amount', type: 'integer', required: true, desc: 'Nominal dalam Rupiah. Min 500, maks 20.000.000' },
+      { field: 'amount', type: 'integer', required: true, desc: 'Nominal dalam Rupiah. Minimum diatur admin (default 500, response error menyebutkan nilainya), maks 20.000.000' },
       { field: 'customerName', type: 'string', required: false, desc: 'Nama pelanggan' },
       { field: 'customerContact', type: 'string', required: false, desc: 'Nomor HP atau email pelanggan' },
       { field: 'externalId', type: 'string', required: false, desc: 'ID order dari sistem Anda (untuk referensi)' },

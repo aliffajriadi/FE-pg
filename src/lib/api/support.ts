@@ -37,4 +37,8 @@ export const merchantSupportApi = {
 export const paymentApi = {
   getInvoice: (invoiceCode: string) =>
     fetchApi<ApiResponse<PublicInvoice>>(`/payment/invoice/${encodeURIComponent(invoiceCode)}`),
+  getSandboxInvoice: (invoiceCode: string) =>
+    fetchApi<ApiResponse<PublicInvoice>>(`/payment/sandbox/${encodeURIComponent(invoiceCode)}`),
+  simulateSandboxInvoice: (invoiceCode: string, status: 'paid' | 'failed' | 'expired') =>
+    fetchApi<ApiResponse<{ paymentStatus: string }>>(`/payment/sandbox/${encodeURIComponent(invoiceCode)}/simulate`, post({ status })),
 };

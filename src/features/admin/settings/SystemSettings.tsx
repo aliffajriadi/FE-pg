@@ -63,6 +63,11 @@ const settingsSchema = z.object({
   defaultWebhookLimitValue: requiredNumber(),
   bannerIsActive: z.boolean(),
   bannerValue: z.string(),
+  minInvoiceAmountValue: z
+    .number({ error: 'Wajib diisi' })
+    .int('Harus bilangan bulat')
+    .min(1, 'Minimal Rp1')
+    .max(20_000_000, 'Maksimal Rp20.000.000'),
   autoWdEnabledValue: z.boolean(),
   autoWdMaxHoursValue: z
     .number({ error: 'Wajib diisi' })
@@ -101,6 +106,7 @@ function toFormValues(s: AdminSettings): SettingsForm {
     defaultWebhookLimitValue: Number(s.defaultWebhookLimit?.value ?? 5),
     bannerIsActive: !!s.banner?.isActive,
     bannerValue: s.banner?.value || '',
+    minInvoiceAmountValue: Number(s.minInvoiceAmount?.value ?? 500),
     autoWdEnabledValue: s.autoWdEnabled?.value === 'true',
     autoWdMaxHoursValue: Number(s.autoWdMaxHours?.value ?? 72),
     merchantTiersValue: s.merchantTiers ?? { basis: 'COUNT', tiers: [{ name: 'Bronze', min: 0, color: 'bronze' }] },
@@ -252,6 +258,32 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           </FormField>
           <FormField label="Default Limit Webhook" htmlFor="default-webhook" error={errors.defaultWebhookLimitValue?.message}>
             <Input id="default-webhook" type="number" min={0} {...form.register('defaultWebhookLimitValue', { valueAsNumber: true })} />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Batas Nominal Invoice</CardTitle>
+          <CardDescription>
+            Minimum nominal yang boleh dibuat merchant per invoice, berlaku untuk API, Dashboard, dan Sandbox. Maksimum tetap
+            Rp20.000.000.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            label="Minimum Nominal Invoice (Rp)"
+            htmlFor="min-invoice-amount"
+            error={errors.minInvoiceAmountValue?.message}
+            hint="Default Rp500. Invoice yang sudah dibuat tidak terpengaruh. Pastikan tidak di bawah batas minimum payment gateway yang dipakai."
+          >
+            <Input
+              id="min-invoice-amount"
+              type="number"
+              min={1}
+              max={20000000}
+              {...form.register('minInvoiceAmountValue', { valueAsNumber: true })}
+            />
           </FormField>
         </CardContent>
       </Card>

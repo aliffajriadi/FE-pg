@@ -13,6 +13,7 @@ import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { InvoiceDetailDialog } from '@/components/shared/InvoiceDetailDialog';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { DateRangeFilter, EMPTY_RANGE, rangeToQuery } from '@/components/shared/DateRangeFilter';
@@ -117,12 +118,13 @@ export default function TransactionsTable() {
               <TableHead>Produk</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Waktu</TableHead>
+              <TableHead>Dibuat</TableHead>
+              <TableHead>Dibayar</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={7} isLoading={isLoading} error={error} isEmpty={!transactions.length} emptyText="Belum ada transaksi" />
+            <TableState colSpan={8} isLoading={isLoading} error={error} isEmpty={!transactions.length} emptyText="Belum ada transaksi" />
             {transactions.map((tx) => {
               const canAct = tx.paymentStatus === 'PENDING' || tx.paymentStatus === 'WAITING_PAYMENT';
               return (
@@ -139,9 +141,13 @@ export default function TransactionsTable() {
                     <StatusBadge status={tx.paymentStatus} />
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(tx.createdAt)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {tx.paidAt ? formatDate(tx.paidAt) : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-2">
-                      {canAct ? (
+                      <InvoiceDetailDialog order={tx} viewer="admin" />
+                      {canAct && (
                         <>
                           <ConfirmAction
                             title="Tandai sebagai dibayar?"
@@ -161,8 +167,6 @@ export default function TransactionsTable() {
                             Batalkan
                           </ConfirmAction>
                         </>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
                       )}
                     </div>
                   </TableCell>

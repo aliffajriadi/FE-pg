@@ -18,6 +18,7 @@ import {
 const NAV = [
   { group: 'Memulai', items: [['getting-started', 'Panduan Awal'], ['authentication', 'Autentikasi'], ['projects', 'Sistem Proyek'], ['errors', 'Error Handling']] },
   { group: 'Invoice API', items: ENDPOINTS.map((e) => [e.id, e.summary]) },
+  { group: 'Sandbox', items: [['sandbox', 'Uji Coba (Sandbox)'], ['sandbox-simulate', 'Simulasi Pembayaran']] },
   { group: 'Webhook', items: [['webhook', 'Cara Kerja'], ['webhook-payload', 'Format Payload'], ['webhook-signature', 'Verifikasi Signature']] },
   { group: 'Referensi', items: [['payment-status', 'Status Pembayaran']] },
 ];
@@ -234,6 +235,67 @@ export default function ApiDocs() {
             </details>
           ))}
         </section>
+
+        <Section
+          id="sandbox"
+          title="Uji Coba (Sandbox)"
+          desc="Coba integrasi Anda tanpa memproses pembayaran sungguhan. Tidak ada uang yang berpindah."
+        >
+          <p className="text-sm text-muted-foreground">
+            Buat API Key sandbox di Dashboard (menu Integrasi API, tab Sandbox). Formatnya{' '}
+            <code className="font-mono">pk_test_xxxx</code>. Endpoint, header, request, dan response-nya sama dengan API asli,
+            jadi untuk go-live Anda cukup mengganti key.
+          </p>
+          <Code>{`curl -X POST ${baseUrl}/invoices \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: pk_test_abc123xyz..." \
+  -d '{"productName":"Produk Uji","amount":10000}'`}</Code>
+          <SimpleTable
+            head={['', 'Live', 'Sandbox']}
+            rows={[
+              ['API Key', <code key="a">pk_live_...</code>, <code key="b">pk_test_...</code>],
+              ['Kode invoice', <code key="c">INV-...</code>, <code key="d">SBX-...</code>],
+              ['Pembayaran', 'QRIS sungguhan', 'Halaman bayar palsu, tidak bisa dibayar'],
+              ['Saldo & penarikan', 'Bertambah saat dibayar', 'Tidak pernah berubah'],
+              ['Webhook', 'Ke webhook live', 'Hanya ke webhook sandbox'],
+              ['Penyimpanan', 'Permanen', 'Dihapus otomatis setelah 7 hari'],
+            ]}
+          />
+          <Callout tone="warning">
+            Key live dan key sandbox saling terpisah: invoice sandbox tidak bisa dibaca dengan key live, begitu juga sebaliknya.
+            Daftarkan webhook sandbox terpisah di Dashboard supaya event uji coba tidak masuk ke server produksi Anda.
+          </Callout>
+        </Section>
+
+        <Section
+          id="sandbox-simulate"
+          title="Simulasi Pembayaran"
+          desc="Ubah status invoice sandbox lewat halaman bayar atau API. Webhook sandbox ikut terkirim."
+        >
+          <p className="text-sm text-muted-foreground">
+            Setiap invoice sandbox punya <code className="font-mono">paymentUrl</code> berupa halaman bayar dengan tombol
+            simulasi. Untuk tes otomatis, panggil endpoint ini dengan key sandbox:
+          </p>
+          <Code>{`POST ${baseUrl}/sandbox/invoices/SBX-1700000000000-AB12/simulate
+x-api-key: pk_test_abc123xyz...
+
+{ "status": "paid" }   // paid | failed | expired`}</Code>
+          <SimpleTable
+            head={['status', 'Hasil', 'Event webhook']}
+            rows={[
+              [<code key="p">paid</code>, 'PAID', <code key="e1">payment.paid</code>],
+              [<code key="f">failed</code>, 'FAILED', <code key="e2">payment.failed</code>],
+              [<code key="x">expired</code>, 'EXPIRED', <code key="e3">payment.expired</code>],
+            ]}
+          />
+          <Callout>
+            Payload webhook sandbox sama dengan yang asli, ditambah <code className="font-mono">sandbox: true</code> dan header{' '}
+            <code className="font-mono">X-Webhook-Mode: sandbox</code>. Saat ini webhook live hanya mengirim{' '}
+            <code className="font-mono">payment.paid</code>; event <code className="font-mono">failed</code> dan{' '}
+            <code className="font-mono">expired</code> disediakan di sandbox untuk menguji penanganan status tersebut. Invoice
+            sandbox yang tidak dibayar kedaluwarsa otomatis setelah 24 jam.
+          </Callout>
+        </Section>
 
         <Section id="webhook" title="Webhook" desc="Sistem mengirim notifikasi otomatis ke endpoint Anda saat status pembayaran berubah.">
           <Steps steps={WEBHOOK_STEPS} />

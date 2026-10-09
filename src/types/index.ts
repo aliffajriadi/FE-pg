@@ -80,6 +80,11 @@ export interface Order {
   paymentMethod: string | null;
   paymentNumber: string | null;
   paymentUrl: string | null;
+  /** Tambahan nominal gateway manual agar tiap invoice menunggu punya total berbeda. */
+  uniqueCode?: number | null;
+  externalId?: string | null;
+  pgReference?: string | null;
+  expiredAt?: string | null;
   paidAt: string | null;
   createdAt: string;
 }
@@ -167,6 +172,8 @@ export interface ApiKey {
   name: string;
   key: string;
   isActive: boolean;
+  /** Key uji coba (pk_test_...). Undefined = key live. */
+  isSandbox?: boolean;
   lastUsedAt: string | null;
   projectId?: number | null;
 }
@@ -177,7 +184,40 @@ export interface Webhook {
   url: string;
   secret: string;
   isActive: boolean;
+  /** Undefined = LIVE. */
+  mode?: IntegrationMode;
   projectId?: number | null;
+}
+
+export type IntegrationMode = 'LIVE' | 'SANDBOX';
+
+export interface SandboxOrder {
+  id: number;
+  invoiceCode: string;
+  externalId: string | null;
+  productName: string;
+  customerName: string | null;
+  amount: number;
+  platformFee: number;
+  totalAmount: number;
+  netAmount: number;
+  paymentStatus: PaymentStatus;
+  paymentUrl: string | null;
+  expiredAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: number;
+  event: string;
+  url: string;
+  payload: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  responseStatus: number | null;
+  responseBody: string | null;
+  lastError: string | null;
+  createdAt: string;
 }
 
 export interface Project {
@@ -189,6 +229,8 @@ export interface Project {
 }
 
 export interface PublicInvoice {
+  /** true untuk invoice uji coba (tidak ada uang yang berpindah). */
+  sandbox?: boolean;
   invoiceCode: string;
   storeName: string;
   productName: string;

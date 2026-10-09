@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { CheckCircle2, Plus } from 'lucide-react';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
+import type { IntegrationMode } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,7 +16,7 @@ import { CopyField } from '@/components/shared/CopyField';
 
 export const INTEGRATION_KEYS = [['merchant-projects'], ['merchant-webhooks'], ['merchant-api-keys']];
 
-type ButtonProps = { label: string; size?: 'sm' | 'default'; variant?: 'default' | 'outline' };
+type ButtonProps = { label: string; size?: 'sm' | 'default'; variant?: 'default' | 'outline'; mode?: IntegrationMode };
 
 /** Hasil pembuatan key/secret yang hanya ditampilkan sekali. */
 function SecretResult({ title, label, value, hint, onDone }: { title: string; label: string; value: string; hint?: string; onDone: () => void }) {
@@ -80,13 +81,14 @@ export function CreateProjectDialog() {
 }
 
 // ─── API key ─────────────────────────────────────────────────
-export function CreateApiKeyDialog({ projectId, projectName, label, size = 'sm', variant = 'default' }: ButtonProps & { projectId?: number; projectName?: string }) {
+export function CreateApiKeyDialog({ projectId, projectName, label, size = 'sm', variant = 'default', mode = 'LIVE' }: ButtonProps & { projectId?: number; projectName?: string }) {
+  const sandbox = mode === 'SANDBOX';
   const [open, setOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const form = useForm<z.infer<typeof nameSchema>>({ resolver: zodResolver(nameSchema) });
 
-  const mutation = useApiMutation(({ name }: { name: string }) => merchantApi.createApiKey({ name, projectId }), {
-    successMessage: 'API Key berhasil dibuat',
+  const mutation = useApiMutation(({ name }: { name: string }) => merchantApi.createApiKey({ name, projectId, mode }), {
+    successMessage: sandbox ? 'API Key sandbox berhasil dibuat' : 'API Key berhasil dibuat',
     invalidate: INTEGRATION_KEYS,
     onSuccess: (res) => setCreatedKey(res.data.key),
   });
@@ -105,20 +107,26 @@ export function CreateApiKeyDialog({ projectId, projectName, label, size = 'sm',
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{projectName ? `Tambah API Key ke "${projectName}"` : 'Buat API Key Global'}</DialogTitle>
+            <DialogTitle>
+              {projectName ? `Tambah API Key ${sandbox ? 'sandbox ' : ''}ke "${projectName}"` : `Buat API Key ${sandbox ? 'Sandbox' : 'Global'}`}
+            </DialogTitle>
           </DialogHeader>
           {createdKey ? (
             <SecretResult
-              title="API Key berhasil dibuat"
+              title={sandbox ? 'API Key sandbox berhasil dibuat' : 'API Key berhasil dibuat'}
               label="API Key"
               value={createdKey}
-              hint="Gunakan sebagai header x-api-key saat memanggil API."
+              hint={
+                sandbox
+                  ? 'Gunakan sebagai header x-api-key. Hanya untuk uji coba: tidak ada uang yang berpindah.'
+                  : 'Gunakan sebagai header x-api-key saat memanggil API.'
+              }
               onDone={() => setOpen(false)}
             />
           ) : (
             <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
               <FormField label="Label API Key" htmlFor="key-name" error={form.formState.errors.name?.message}>
-                <Input id="key-name" placeholder="Contoh: Key Produksi" {...form.register('name')} />
+                <Input id="key-name" placeholder={sandbox ? 'Contoh: Key Uji Coba' : 'Contoh: Key Produksi'} {...form.register('name')} />
               </FormField>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -142,14 +150,15 @@ const webhookSchema = z.object({
   url: z.url('URL tidak valid'),
 });
 
-export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm', variant = 'default' }: ButtonProps & { projectId?: number; projectName?: string }) {
+export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm', variant = 'default', mode = 'LIVE' }: ButtonProps & { projectId?: number; projectName?: string }) {
+  const sandbox = mode === 'SANDBOX';
   const [open, setOpen] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const form = useForm<z.infer<typeof webhookSchema>>({ resolver: zodResolver(webhookSchema) });
   const { errors } = form.formState;
 
-  const mutation = useApiMutation((data: z.infer<typeof webhookSchema>) => merchantApi.createWebhook({ ...data, projectId }), {
-    successMessage: 'Webhook berhasil ditambahkan',
+  const mutation = useApiMutation((data: z.infer<typeof webhookSchema>) => merchantApi.createWebhook({ ...data, projectId, mode }), {
+    successMessage: sandbox ? 'Webhook sandbox berhasil ditambahkan' : 'Webhook berhasil ditambahkan',
     invalidate: INTEGRATION_KEYS,
     onSuccess: (res) => setSecret(res.data.secret),
   });
@@ -168,7 +177,9 @@ export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm'
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{projectName ? `Tambah Webhook ke "${projectName}"` : 'Tambah Webhook Global'}</DialogTitle>
+            <DialogTitle>
+              {projectName ? `Tambah Webhook ${sandbox ? 'sandbox ' : ''}ke "${projectName}"` : `Tambah Webhook ${sandbox ? 'Sandbox' : 'Global'}`}
+            </DialogTitle>
           </DialogHeader>
           {secret ? (
             <SecretResult
@@ -187,7 +198,11 @@ export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm'
                 label="URL Endpoint"
                 htmlFor="wh-url"
                 error={errors.url?.message}
-                hint="Sistem akan mengirim POST ke URL ini saat ada pembayaran."
+                hint={
+                  sandbox
+                    ? 'Menerima event uji coba saja (ditandai sandbox: true). Server kami harus bisa menjangkau URL ini, untuk tes lokal pakai tunnel seperti ngrok.'
+                    : 'Sistem akan mengirim POST ke URL ini saat ada pembayaran.'
+                }
               >
                 <Input id="wh-url" type="url" placeholder="https://situs-anda.com/webhook" {...form.register('url')} />
               </FormField>

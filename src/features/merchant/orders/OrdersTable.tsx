@@ -15,6 +15,7 @@ import { SearchForm } from '@/components/shared/SearchForm';
 import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { InvoiceDetailDialog } from '@/components/shared/InvoiceDetailDialog';
 import { DateRangeFilter, EMPTY_RANGE, rangeToQuery } from '@/components/shared/DateRangeFilter';
 import { ExportButton } from '@/components/shared/ExportButton';
 import { exportTransactions } from '@/lib/export-transactions';
@@ -101,13 +102,14 @@ export default function OrdersTable() {
               <TableHead>Pelanggan</TableHead>
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Waktu</TableHead>
+              <TableHead>Dibuat</TableHead>
+              <TableHead>Dibayar</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableState
-              colSpan={7}
+              colSpan={8}
               isLoading={isLoading}
               error={error}
               isEmpty={!orders.length}
@@ -127,8 +129,12 @@ export default function OrdersTable() {
                   <StatusBadge status={order.paymentStatus} />
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(order.createdAt)}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {order.paidAt ? formatDate(order.paidAt) : <span className="text-muted-foreground">—</span>}
+                </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
+                    <InvoiceDetailDialog order={order} viewer="merchant" />
                     {order.paymentStatus !== 'PAID' && (
                       <Button
                         variant="outline"

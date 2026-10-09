@@ -6,10 +6,12 @@ import type {
   BalanceLog,
   BankAccount,
   FeeType,
+  IntegrationMode,
   ManualQris,
   Order,
   PaginatedResponse,
   Store,
+  StoreStatus,
   SystemSetting,
   User,
   Withdrawal,
@@ -47,6 +49,79 @@ export type AdminWithdrawal = Withdrawal & {
 };
 export type AdminBankAccount = BankAccount & { store: Store };
 
+export interface IntegrationCount {
+  total: number;
+  active: number;
+}
+
+export interface AdminIntegrationRow {
+  id: number;
+  name: string;
+  status: StoreStatus;
+  user: { name: string; email: string };
+  projectCount: number;
+  apiKeys: { live: IntegrationCount; sandbox: IntegrationCount };
+  webhooks: { live: IntegrationCount; sandbox: IntegrationCount };
+  lastKeyUsedAt: string | null;
+  hasLegacyWebhook: boolean;
+}
+
+export interface AdminIntegrationKey {
+  id: number;
+  name: string;
+  key: string;
+  isActive: boolean;
+  isSandbox: boolean;
+  lastUsedAt: string | null;
+  projectId: number | null;
+  createdAt: string;
+}
+
+export interface AdminIntegrationWebhook {
+  id: number;
+  name: string;
+  url: string;
+  secret: string;
+  isActive: boolean;
+  mode: IntegrationMode;
+  projectId: number | null;
+  createdAt: string;
+}
+
+export interface AdminIntegrationDelivery {
+  id: number;
+  event: string;
+  url: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  responseStatus: number | null;
+  lastError: string | null;
+  isSandbox: boolean;
+  createdAt: string;
+}
+
+export interface DeliveryStats {
+  success: number;
+  failed: number;
+  pending: number;
+}
+
+export interface AdminIntegrationDetail {
+  store: {
+    id: number;
+    name: string;
+    slug: string;
+    status: StoreStatus;
+    createdAt: string;
+    user: { name: string; email: string };
+  };
+  legacyWebhookUrl: string | null;
+  legacyWebhookSecret: string | null;
+  projects: { id: number; name: string; isActive: boolean; apiKeys: AdminIntegrationKey[]; webhooks: AdminIntegrationWebhook[] }[];
+  global: { apiKeys: AdminIntegrationKey[]; webhooks: AdminIntegrationWebhook[] };
+  deliveryStats: { live: DeliveryStats; sandbox: DeliveryStats };
+  recentDeliveries: AdminIntegrationDelivery[];
+}
+
 export interface StoreBalance {
   availableBalance: number;
   pendingBalance: number;
@@ -66,6 +141,7 @@ export interface AdminSettings {
   defaultWebhookLimit: SystemSetting;
   defaultPaymentGateway: SystemSetting;
   defaultManualQris: SystemSetting;
+  minInvoiceAmount: SystemSetting;
   autoWdEnabled: SystemSetting;
   autoWdMaxHours: SystemSetting;
   merchantTiers: { basis: TierBasis; tiers: MerchantTier[] };
@@ -130,6 +206,12 @@ export const adminApi = {
   getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),
   adjustStoreBalance: (id: number, body: { type: 'CREDIT' | 'DEBIT'; amount: number; description?: string }) =>
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),
+
+  // Integrasi API merchant (read-only)
+  getIntegrations: (params: ListParams) =>
+    fetchApi<PaginatedResponse<AdminIntegrationRow>>(`/admin/integrations${toQuery({ ...params })}`),
+  getIntegration: (storeId: number) =>
+    fetchApi<ApiResponse<AdminIntegrationDetail>>(`/admin/integrations/${storeId}`),
 
   // Transaksi
   getTransactions: (params: ListParams & { storeId?: number; startDate?: string; endDate?: string }) =>

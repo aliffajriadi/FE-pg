@@ -4,15 +4,29 @@ import type {
   ApiResponse,
   BankAccount,
   FeeType,
+  IntegrationMode,
   Order,
   PaginatedResponse,
   Project,
+  SandboxOrder,
   SystemSetting,
   Webhook,
+  WebhookDelivery,
   Withdrawal,
 } from '@/types';
 
 type Msg = ApiResponse<unknown>;
+
+export type SandboxOutcome = 'paid' | 'failed' | 'expired';
+
+export interface InvoicePreview {
+  amount: number;
+  platformFee: number;
+  /** Kode unik gateway manual (perkiraan saat ini), 0 jika tidak ada. */
+  uniqueCode?: number;
+  totalAmount: number;
+  netAmount: number;
+}
 
 export interface AutoWithdrawalInfo {
   enabled: boolean;
@@ -106,11 +120,11 @@ export const merchantApi = {
   deleteProject: (id: number) => fetchApi<Msg>(`/merchant/projects/${id}`, json('DELETE')),
 
   getApiKeys: () => fetchApi<ApiResponse<ApiKey[]>>('/merchant/api-keys'),
-  createApiKey: (body: { name: string; projectId?: number }) =>
+  createApiKey: (body: { name: string; projectId?: number; mode?: IntegrationMode }) =>
     fetchApi<ApiResponse<ApiKey>>('/merchant/api-keys', json('POST', body)),
 
   getWebhooks: () => fetchApi<ApiResponse<Webhook[]>>('/merchant/webhooks'),
-  createWebhook: (body: { name: string; url: string; projectId?: number }) =>
+  createWebhook: (body: { name: string; url: string; projectId?: number; mode?: IntegrationMode }) =>
     fetchApi<ApiResponse<Webhook>>('/merchant/webhooks', json('POST', body)),
   updateWebhook: (id: number, body: { isActive?: boolean }) =>
     fetchApi<ApiResponse<Webhook>>(`/merchant/webhooks/${id}`, json('PATCH', body)),
@@ -118,6 +132,22 @@ export const merchantApi = {
   regenerateWebhookSecret: (id: number) =>
     fetchApi<ApiResponse<Webhook>>(`/merchant/webhooks/${id}/regenerate-secret`, json('POST')),
   testWebhook: (id: number) => fetchApi<Msg>(`/merchant/webhooks/${id}/test`, json('POST')),
+
+  previewInvoice: (amount: number) =>
+    fetchApi<ApiResponse<InvoicePreview>>(`/merchant/invoice-preview${toQuery({ amount })}`),
+  getInvoiceLimits: () => fetchApi<ApiResponse<{ min: number; max: number }>>('/merchant/invoice-limits'),
+
+  // Sandbox (uji coba, terpisah dari transaksi & saldo asli)
+  getSandboxInvoices: (params: { page?: number; status?: string }) =>
+    fetchApi<PaginatedResponse<SandboxOrder>>(`/merchant/sandbox/invoices${toQuery({ ...params })}`),
+  createSandboxInvoice: (body: { productName: string; amount: number; customerName?: string }) =>
+    fetchApi<ApiResponse<SandboxOrder>>('/merchant/sandbox/invoices', json('POST', body)),
+  simulateSandboxInvoice: (invoiceCode: string, status: SandboxOutcome) =>
+    fetchApi<Msg>(`/merchant/sandbox/invoices/${invoiceCode}/simulate`, json('POST', { status })),
+  getSandboxDeliveries: (params: { page?: number }) =>
+    fetchApi<PaginatedResponse<WebhookDelivery>>(`/merchant/sandbox/webhook-deliveries${toQuery({ ...params })}`),
+  resendSandboxDelivery: (id: number) =>
+    fetchApi<Msg>(`/merchant/sandbox/webhook-deliveries/${id}/resend`, json('POST')),
 
   // Rekening bank
   getBankAccounts: () => fetchApi<ApiResponse<BankAccount[]>>('/merchant/bank-accounts'),
