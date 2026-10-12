@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { merchantApi } from '@/lib/api/merchant';
 
-const FALLBACK = { min: 500, max: 20_000_000 };
+const FALLBACK = { min: 500, max: 20_000_000, manualInvoiceEnabled: false };
 
 /** Batas nominal invoice (minimum diatur admin). Memakai nilai default selama data belum dimuat. */
 export function useInvoiceLimits() {

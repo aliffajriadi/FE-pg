@@ -22,10 +22,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { CopyButton } from '@/components/shared/CopyButton';
+import { StatusBadge } from '@/components/shared/StatusBadge';
+import { formatDate } from '@/lib/utils';
 import type { ApiKey, IntegrationMode, Webhook } from '@/types';
 import {
   CreateApiKeyDialog,
-  CreateProjectDialog,
+  RequestProjectDialog,
   CreateWebhookDialog,
   INTEGRATION_KEYS,
   RegenerateSecretDialog,
@@ -146,9 +148,9 @@ function CountChip({ icon: Icon, count, label }: { icon: typeof KeyRound; count:
 }
 
 const ONBOARDING_STEPS = [
-  'Buat proyek untuk tiap aplikasi atau website Anda.',
-  'Tambahkan API Key untuk membuat invoice dari aplikasi tersebut.',
-  'Tambahkan Webhook agar aplikasi menerima notifikasi pembayaran.',
+  'Ajukan proyek dan jelaskan kegunaannya, lalu tunggu persetujuan admin.',
+  'Setelah disetujui, buat 1 API Key untuk proyek tersebut.',
+  'Tambahkan 1 Webhook agar aplikasi menerima notifikasi pesanan.',
 ];
 
 export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
@@ -176,10 +178,10 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
           <p className="text-sm text-muted-foreground">
             {sandbox
               ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari yang live.'
-              : 'Tiap proyek punya API Key dan Webhook sendiri. Notifikasi hanya dikirim ke webhook proyek yang membuat invoice.'}
+              : 'Tiap proyek mendapat 1 API Key dan 1 Webhook (live dan sandbox dihitung bersama). Proyek baru harus diajukan dan disetujui admin.'}
           </p>
         </div>
-        <CreateProjectDialog />
+        <RequestProjectDialog />
       </div>
 
       {isLoading ? (
@@ -189,7 +191,7 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
       ) : !projects?.length ? (
         <Card className="border-dashed">
           <CardContent className="space-y-4 py-4">
-            <p className="font-medium">Mulai integrasi dengan membuat proyek</p>
+            <p className="font-medium">Mulai integrasi dengan mengajukan proyek</p>
             <ol className="space-y-2 text-sm text-muted-foreground">
               {ONBOARDING_STEPS.map((step, i) => (
                 <li key={step} className="flex gap-3">
@@ -259,6 +261,35 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+/** Riwayat pengajuan proyek beserta status dan catatan admin. */
+export function ProjectRequestsSection() {
+  const { data } = useQuery({
+    queryKey: ['merchant-project-requests'],
+    queryFn: merchantApi.getProjectRequests,
+    select: (res) => res.data,
+  });
+  if (!data?.length) return null;
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold">Pengajuan Proyek</h2>
+      <div className="divide-y rounded-xl border bg-card">
+        {data.map((r) => (
+          <div key={r.id} className="space-y-1 p-4 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{r.name}</span>
+              <StatusBadge status={r.status} />
+              <span className="text-xs text-muted-foreground">{formatDate(r.createdAt)}</span>
+            </div>
+            <p className="text-muted-foreground">{r.purpose}</p>
+            {r.adminNote && <p className="text-xs">Catatan admin: {r.adminNote}</p>}
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

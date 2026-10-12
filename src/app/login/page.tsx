@@ -71,9 +71,9 @@ export default function LoginPage() {
         <Logo inverted size="lg" />
 
         <div className="max-w-sm space-y-4">
-          <h1 className="text-3xl leading-snug font-semibold">Dashboard pembayaran QRIS untuk merchant.</h1>
+          <h1 className="text-3xl leading-snug font-semibold">Dashboard toko bot autostore Anda.</h1>
           <p className="leading-relaxed text-white/70">
-            Kelola invoice, pantau saldo, dan atur penarikan dana dari satu tempat.
+            Kelola pesanan, pantau saldo, dan atur penarikan dana toko bot dari satu tempat.
           </p>
         </div>
 

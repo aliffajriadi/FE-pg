@@ -33,7 +33,7 @@ const TERMS: [string, string][] = [
 const FAQ: [string, string][] = [
   [
     'Bagaimana cara mendaftar?',
-    'Akun merchant dibuat oleh admin AkuQRIS. Setelah akun aktif dan toko disetujui, Anda bisa langsung membuat invoice.',
+    'Akun dibuat oleh admin AkuQRIS. Setelah akun aktif dan toko disetujui, Anda bisa langsung memakai dashboard.',
   ],
   [
     'Apakah pelanggan perlu aplikasi khusus?',
@@ -128,11 +128,10 @@ export default function LandingPage() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 md:py-24 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <div className="space-y-6">
             <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-              Terima pembayaran QRIS lewat invoice atau API.
+              Dashboard toko bot autostore untuk mengelola penjualan Anda.
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Buat tagihan, pelanggan membayar dengan aplikasi apa pun yang mendukung QRIS, dan saldo masuk ke akun Anda
-              untuk ditarik ke rekening.
+              Pantau pesanan dari bot, kelola saldo toko, dan ajukan penarikan ke rekening dari satu dashboard.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5')}>
@@ -168,13 +167,13 @@ export default function LandingPage() {
             <div className="space-y-6">
               <SectionTitle
                 eyebrow="Untuk developer"
-                title="Satu request untuk membuat invoice."
-                desc="Kirim nominal dan nama produk, dapatkan link pembayaran. Status dikabarkan lewat webhook."
+                title="Satu request untuk membuat pesanan."
+                desc="Kirim nominal dan nama produk dari bot Anda. Status pesanan dikabarkan lewat webhook."
               />
               <ul className="space-y-3 text-sm">
                 <li className="border-l-2 border-primary pl-3">
                   <strong>API key per proyek.</strong>{' '}
-                  <span className="text-muted-foreground">Pisahkan aplikasi kasir, website, atau bot Anda.</span>
+                  <span className="text-muted-foreground">Pisahkan tiap bot atau toko Anda.</span>
                 </li>
                 <li className="border-l-2 border-primary pl-3">
                   <strong>Webhook bertanda tangan.</strong>{' '}
@@ -242,7 +241,7 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center">
             <div>
               <h2 className="text-2xl font-semibold">Sudah punya akun merchant?</h2>
-              <p className="mt-1 text-white/70">Masuk untuk membuat invoice pertama Anda.</p>
+              <p className="mt-1 text-white/70">Masuk untuk mengelola toko bot Anda.</p>
             </div>
             <Link href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 bg-white px-5 text-[#1d3557] hover:bg-white/90')}>
               Masuk ke Dashboard

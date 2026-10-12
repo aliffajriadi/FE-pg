@@ -39,6 +39,11 @@ export default function StoresTable() {
     { ...options, successMessage: 'Pengaturan auto penarikan disimpan' }
   );
 
+  const toggleManualInvoice = useApiMutation(
+    ({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreManualInvoice(id, enabled),
+    { ...options, successMessage: 'Pengaturan invoice manual disimpan' }
+  );
+
   const stores = data?.data ?? [];
 
   return (
@@ -63,11 +68,12 @@ export default function StoresTable() {
               <TableHead>Fee</TableHead>
               <TableHead>Hold</TableHead>
               <TableHead>Auto WD</TableHead>
+              <TableHead>Invoice Manual</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={7} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
+            <TableState colSpan={8} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
             {stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
@@ -88,6 +94,14 @@ export default function StoresTable() {
                     onCheckedChange={(checked) => toggleAutoWd.mutate({ id: store.id, excluded: !checked })}
                     disabled={toggleAutoWd.isPending}
                     aria-label={`Auto penarikan ${store.name}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={!!store.manualInvoiceEnabled}
+                    onCheckedChange={(checked) => toggleManualInvoice.mutate({ id: store.id, enabled: checked })}
+                    disabled={toggleManualInvoice.isPending}
+                    aria-label={`Invoice manual ${store.name}`}
                   />
                 </TableCell>
                 <TableCell>

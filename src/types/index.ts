@@ -62,6 +62,7 @@ export interface Store {
   wdMaxAmount: number | null;
   paymentGateway: string;
   autoWdExcluded: boolean;
+  manualInvoiceEnabled: boolean;
   createdAt: string;
 }
 
@@ -217,6 +218,19 @@ export interface WebhookDelivery {
   responseStatus: number | null;
   responseBody: string | null;
   lastError: string | null;
+  createdAt: string;
+}
+
+export type ProjectRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface ProjectRequest {
+  id: number;
+  storeId: number;
+  name: string;
+  purpose: string;
+  status: ProjectRequestStatus;
+  adminNote: string | null;
+  reviewedAt: string | null;
   createdAt: string;
 }
 

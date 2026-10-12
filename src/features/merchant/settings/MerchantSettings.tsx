@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { StatusTabs } from '@/components/shared/StatusTabs';
 import { cn } from '@/lib/utils';
 import type { IntegrationMode } from '@/types';
-import { GlobalIntegrationSection, ProjectsSection } from './ApiIntegration';
+import { GlobalIntegrationSection, ProjectRequestsSection, ProjectsSection } from './ApiIntegration';
 
 const MODE_TABS = [
   { value: 'LIVE', label: 'Live' },
@@ -49,6 +49,7 @@ export default function MerchantSettings() {
       )}
 
       <ProjectsSection mode={mode} />
+      <ProjectRequestsSection />
       <GlobalIntegrationSection mode={mode} />
     </>
   );

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   Banknote,
+  FolderPlus,
   Code2,
   UserRound,
   BookOpen,
@@ -66,6 +67,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/bank-accounts', label: 'Rekening Bank', icon: Landmark },
   { href: '/admin/qris', label: 'Daftar QRIS', icon: QrCode },
   { href: '/admin/integrations', label: 'Integrasi Merchant', icon: Plug },
+  { href: '/admin/project-requests', label: 'Pengajuan Proyek', icon: FolderPlus },
   { href: '/admin/settings', label: 'Pengaturan Sistem', icon: Settings },
   { href: '/admin/logs', label: 'Log Aktivitas', icon: ClipboardList },
   { href: '/admin/support', label: 'Support Tiket', icon: Headphones },

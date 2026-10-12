@@ -78,6 +78,8 @@ export function CreateOrderDialog({ variant = 'default' }: { variant?: 'default'
   const shownPreview = amountValid && preview.data?.amount === amount ? preview.data : undefined;
   const previewLoading = amountValid && !shownPreview && !preview.isError;
 
+  if (!limits.manualInvoiceEnabled) return null;
+
   return (
     <>
       <Button variant={variant} onClick={() => setOpen(true)}>

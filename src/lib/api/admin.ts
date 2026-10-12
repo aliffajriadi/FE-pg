@@ -10,6 +10,7 @@ import type {
   ManualQris,
   Order,
   PaginatedResponse,
+  ProjectRequest,
   Store,
   StoreStatus,
   SystemSetting,
@@ -18,6 +19,10 @@ import type {
 } from '@/types';
 
 type Msg = ApiResponse<unknown>;
+
+export type AdminProjectRequest = ProjectRequest & {
+  store: { id: number; name: string; user: { name: string; email: string } };
+};
 
 export interface ListParams {
   page?: number;
@@ -203,6 +208,14 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/hold-hours`, json('PATCH', { holdHours })),
   updateStoreAutoWd: (id: number, excluded: boolean) =>
     fetchApi<Msg>(`/admin/stores/${id}/auto-wd`, json('PATCH', { excluded })),
+  getProjectRequests: (status?: string) =>
+    fetchApi<ApiResponse<AdminProjectRequest[]>>(`/admin/project-requests${toQuery({ status })}`),
+  approveProjectRequest: (id: number, note?: string) =>
+    fetchApi<Msg>(`/admin/project-requests/${id}/approve`, json('PATCH', { note })),
+  rejectProjectRequest: (id: number, note: string) =>
+    fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
+  updateStoreManualInvoice: (id: number, enabled: boolean) =>
+    fetchApi<Msg>(`/admin/stores/${id}/manual-invoice`, json('PATCH', { enabled })),
   getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),
   adjustStoreBalance: (id: number, body: { type: 'CREDIT' | 'DEBIT'; amount: number; description?: string }) =>
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),

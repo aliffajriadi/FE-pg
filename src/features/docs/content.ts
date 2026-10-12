@@ -99,7 +99,7 @@ export const ENDPOINTS: Endpoint[] = [
     id: 'sync-invoice',
     method: 'POST',
     path: '/api/v1/invoices/:invoiceCode/sync',
-    summary: 'Paksa cek status ke payment gateway',
+    summary: 'Paksa cek status ke penyedia pembayaran',
     note: 'Gunakan jika webhook belum diterima namun Anda perlu status terbaru. Jika status berubah menjadi PAID, webhook otomatis dikirim.',
     response: `{
   "success": true,
@@ -129,7 +129,7 @@ export const ENDPOINTS: Endpoint[] = [
 
 export const WEBHOOK_STEPS = [
   'Pelanggan menyelesaikan pembayaran di halaman checkout.',
-  'Payment gateway mengirim notifikasi ke server kami.',
+  'Penyedia pembayaran mengirim notifikasi ke server kami.',
   'Server memperbarui status invoice menjadi PAID.',
   'Server mengirim POST request ke semua Webhook URL aktif milik proyek yang membuat invoice.',
   'Endpoint Anda menerima payload dan memproses pesanan.',
@@ -198,11 +198,11 @@ if ($data['status'] === 'completed') {
 http_response_code(200);`;
 
 export const PAYMENT_STATUSES: [string, string][] = [
-  ['PENDING', 'Invoice baru dibuat, belum ada interaksi dari payment gateway'],
+  ['PENDING', 'Invoice baru dibuat, belum ada interaksi dari penyedia pembayaran'],
   ['WAITING_PAYMENT', 'Invoice aktif dan menunggu pembayaran dari pelanggan'],
   ['PAID', 'Pembayaran berhasil dikonfirmasi. Saldo masuk ke akun merchant'],
   ['EXPIRED', 'Invoice kedaluwarsa sebelum dibayar'],
-  ['FAILED', 'Pembayaran gagal diproses oleh payment gateway'],
+  ['FAILED', 'Pembayaran gagal diproses oleh penyedia pembayaran'],
   ['CANCELLED', 'Invoice dibatalkan secara manual via API atau Dashboard'],
   ['REFUNDED', 'Pembayaran sudah di-refund ke pelanggan'],
 ];

@@ -8,6 +8,7 @@ import type {
   Order,
   PaginatedResponse,
   Project,
+  ProjectRequest,
   SandboxOrder,
   SystemSetting,
   Webhook,
@@ -116,7 +117,9 @@ export const merchantApi = {
 
   // Proyek, API key, webhook
   getProjects: () => fetchApi<ApiResponse<Project[]>>('/merchant/projects'),
-  createProject: (name: string) => fetchApi<Msg>('/merchant/projects', json('POST', { name })),
+  getProjectRequests: () => fetchApi<ApiResponse<ProjectRequest[]>>('/merchant/project-requests'),
+  requestProject: (body: { name: string; purpose: string }) =>
+    fetchApi<Msg>('/merchant/project-requests', json('POST', body)),
   deleteProject: (id: number) => fetchApi<Msg>(`/merchant/projects/${id}`, json('DELETE')),
 
   getApiKeys: () => fetchApi<ApiResponse<ApiKey[]>>('/merchant/api-keys'),
@@ -135,7 +138,7 @@ export const merchantApi = {
 
   previewInvoice: (amount: number) =>
     fetchApi<ApiResponse<InvoicePreview>>(`/merchant/invoice-preview${toQuery({ amount })}`),
-  getInvoiceLimits: () => fetchApi<ApiResponse<{ min: number; max: number }>>('/merchant/invoice-limits'),
+  getInvoiceLimits: () => fetchApi<ApiResponse<{ min: number; max: number; manualInvoiceEnabled: boolean }>>('/merchant/invoice-limits'),
 
   // Sandbox (uji coba, terpisah dari transaksi & saldo asli)
   getSandboxInvoices: (params: { page?: number; status?: string }) =>

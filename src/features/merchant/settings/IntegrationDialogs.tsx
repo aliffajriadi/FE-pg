@@ -1,15 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { CheckCircle2, Plus } from 'lucide-react';
+import { CheckCircle2, FolderPlus, Info, Loader2, Plus, Send } from 'lucide-react';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import type { IntegrationMode } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormField } from '@/components/shared/FormField';
 import { CopyField } from '@/components/shared/CopyField';
@@ -35,15 +36,32 @@ function SecretResult({ title, label, value, hint, onDone }: { title: string; la
   );
 }
 
-// ─── Proyek ──────────────────────────────────────────────────
 const nameSchema = z.object({ name: z.string().trim().min(1, 'Nama wajib diisi') });
 
-export function CreateProjectDialog() {
+// ─── Pengajuan proyek ────────────────────────────────────────
+const requestSchema = z.object({
+  name: z.string().trim().min(1, 'Nama wajib diisi').max(100, 'Maksimal 100 karakter'),
+  purpose: z.string().trim().min(20, 'Jelaskan minimal 20 karakter').max(1000, 'Maksimal 1000 karakter'),
+});
+
+const PURPOSE_TEMPLATE = `Platform: 
+Produk yang dijual: 
+Perkiraan transaksi per hari: 
+Kegunaan: `;
+const NAME_EXAMPLES = ['Bot Telegram Toko', 'Bot WhatsApp Autostore', 'Website Toko'];
+const PROCESS_STEPS = ['Kirim pengajuan', 'Admin meninjau', 'Dapat 1 API Key & 1 Webhook'];
+
+export function RequestProjectDialog() {
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof nameSchema>>({ resolver: zodResolver(nameSchema) });
-  const mutation = useApiMutation(({ name }: { name: string }) => merchantApi.createProject(name), {
-    successMessage: 'Proyek berhasil dibuat',
-    invalidate: INTEGRATION_KEYS,
+  const form = useForm<z.infer<typeof requestSchema>>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: { name: '', purpose: '' },
+  });
+  const { errors } = form.formState;
+  const purposeLength = (useWatch({ control: form.control, name: 'purpose' }) ?? '').trim().length;
+  const mutation = useApiMutation(merchantApi.requestProject, {
+    successMessage: 'Pengajuan terkirim, menunggu persetujuan admin',
+    invalidate: [['merchant-project-requests']],
     onSuccess: () => {
       setOpen(false);
       form.reset();
@@ -53,24 +71,88 @@ export function CreateProjectDialog() {
   return (
     <>
       <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus /> Proyek Baru
+        <Plus /> Ajukan Proyek
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Buat Proyek Baru</DialogTitle>
-            <DialogDescription>Setelah proyek dibuat, tambahkan API Key dan Webhook khusus untuk proyek ini.</DialogDescription>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-lg">
+          <DialogHeader className="space-y-3 border-b bg-muted/40 p-6">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <FolderPlus className="size-5" />
+              </span>
+              <div className="space-y-0.5">
+                <DialogTitle>Ajukan Proyek Baru</DialogTitle>
+                <DialogDescription>Ceritakan singkat untuk apa proyek ini akan dipakai.</DialogDescription>
+              </div>
+            </div>
+            <ol className="flex items-center gap-2 text-xs text-muted-foreground">
+              {PROCESS_STEPS.map((step, i) => (
+                <li key={step} className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                    {i + 1}
+                  </span>
+                  <span className="leading-tight">{step}</span>
+                </li>
+              ))}
+            </ol>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
-            <FormField label="Nama Proyek" htmlFor="project-name" error={form.formState.errors.name?.message}>
-              <Input id="project-name" placeholder="Contoh: App Kasir, Website Toko" {...form.register('name')} />
+
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-5 p-6">
+            <FormField label="Nama Proyek" htmlFor="project-name" error={errors.name?.message}>
+              <Input id="project-name" placeholder="Contoh: Bot Telegram Toko" autoComplete="off" {...form.register('name')} />
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {NAME_EXAMPLES.map((example) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => form.setValue('name', example, { shouldValidate: true })}
+                    className="rounded-full border bg-background px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
             </FormField>
-            <DialogFooter>
+
+            <FormField label="Tujuan & Penggunaan" htmlFor="project-purpose" error={errors.purpose?.message}>
+              <Textarea
+                id="project-purpose"
+                rows={6}
+                placeholder="Jelaskan untuk apa proyek ini, platform yang dipakai, produk yang dijual, dan perkiraan jumlah transaksi."
+                {...form.register('purpose')}
+              />
+              <div className="flex items-center justify-between gap-3 pt-0.5 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => form.setValue('purpose', PURPOSE_TEMPLATE, { shouldDirty: true })}
+                  disabled={purposeLength > 0}
+                  className="text-primary hover:underline disabled:pointer-events-none disabled:opacity-40"
+                >
+                  Pakai template
+                </button>
+                <span className={purposeLength >= 20 ? 'text-emerald-600' : ''}>{purposeLength}/20 karakter minimal</span>
+              </div>
+            </FormField>
+
+            <p className="flex items-start gap-2 rounded-lg bg-muted/60 p-3 text-xs text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" />
+              Setiap proyek mendapat 1 API Key dan 1 Webhook. Status pengajuan bisa dipantau di halaman ini.
+            </p>
+
+            <DialogFooter className="mx-0 mb-0 border-0 bg-transparent p-0">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Batal
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? 'Membuat...' : 'Buat Proyek'}
+                {mutation.isPending ? (
+                  <>
+                    <Loader2 className="animate-spin" /> Mengirim...
+                  </>
+                ) : (
+                  <>
+                    <Send /> Kirim Pengajuan
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>

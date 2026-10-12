@@ -143,7 +143,7 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
     <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Payment Gateway Global</CardTitle>
+          <CardTitle>Penyedia Pembayaran Global</CardTitle>
           <CardDescription>Gateway pembayaran yang dipakai oleh seluruh merchant.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -275,7 +275,7 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
             label="Minimum Nominal Invoice (Rp)"
             htmlFor="min-invoice-amount"
             error={errors.minInvoiceAmountValue?.message}
-            hint="Default Rp500. Invoice yang sudah dibuat tidak terpengaruh. Pastikan tidak di bawah batas minimum payment gateway yang dipakai."
+            hint="Default Rp500. Invoice yang sudah dibuat tidak terpengaruh. Pastikan tidak di bawah batas minimum penyedia pembayaran yang dipakai."
           >
             <Input
               id="min-invoice-amount"

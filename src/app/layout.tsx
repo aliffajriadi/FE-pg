@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: { default: "AkuQRIS", template: "%s — AkuQRIS" },
-  description: "AkuQRIS — dashboard payment gateway QRIS untuk merchant dan admin. Kelola transaksi, saldo, dan penarikan dana.",
+  description: "AkuQRIS — dashboard toko bot autostore. Kelola pesanan, produk, saldo, dan penarikan toko bot Anda dari satu tempat.",
 };
 
 export default function RootLayout({
