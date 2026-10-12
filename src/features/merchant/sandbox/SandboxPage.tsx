@@ -18,8 +18,10 @@ import { RefreshButton } from '@/components/shared/RefreshButton';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import type { SandboxOrder, WebhookDelivery } from '@/types';
 import { CreateSandboxInvoiceDialog } from './CreateSandboxInvoiceDialog';
+import { SandboxIntegrationSection } from '../settings/ApiIntegration';
 
 const VIEW_TABS = [
+  { value: 'setup', label: 'API Key & Webhook' },
   { value: 'invoices', label: 'Invoice' },
   { value: 'webhooks', label: 'Log Webhook' },
 ];
@@ -36,18 +38,15 @@ const ACTIVE = ['PENDING', 'WAITING_PAYMENT'];
 
 const STEPS = [
   <>
-    Buat <strong>API Key sandbox</strong> (<code className="font-mono">pk_test_...</code>) dan, jika perlu, webhook sandbox di{' '}
-    <Link href="/dashboard/settings" className="text-primary underline">
-      Integrasi API
-    </Link>{' '}
-    tab Sandbox.
+    Buat <strong>API Key sandbox</strong> (<code className="font-mono">pk_test_...</code>) di tab API Key & Webhook, dan webhook
+    sandbox jika perlu. Bebas dibuat, tanpa pengajuan.
   </>,
   <>
     Panggil endpoint yang sama (<code className="font-mono">/api/v1/invoices</code>) memakai key sandbox. Format request dan
     response sama dengan yang asli.
   </>,
   <>
-    Simulasikan hasil pembayaran dari tabel di bawah, atau lewat API{' '}
+    Simulasikan hasil pembayaran dari tab Invoice, atau lewat API{' '}
     <code className="font-mono">POST /api/v1/sandbox/invoices/:kode/simulate</code>. Webhook sandbox akan terkirim.
   </>,
 ];
@@ -246,7 +245,7 @@ function WebhooksPanel() {
           <p className="p-10 text-center text-sm text-destructive">Gagal memuat data: {error.message}</p>
         ) : !deliveries.length ? (
           <p className="p-10 text-center text-sm text-muted-foreground">
-            Belum ada webhook sandbox yang terkirim. Daftarkan webhook sandbox, lalu simulasikan pembayaran.
+            Belum ada webhook sandbox yang terkirim. Tambahkan webhook sandbox di tab API Key & Webhook, lalu simulasikan pembayaran.
           </p>
         ) : (
           deliveries.map((d) => <DeliveryItem key={d.id} delivery={d} />)
@@ -259,7 +258,7 @@ function WebhooksPanel() {
 }
 
 export default function SandboxPage() {
-  const [view, setView] = useState('invoices');
+  const [view, setView] = useState('setup');
 
   return (
     <>
@@ -294,6 +293,9 @@ export default function SandboxPage() {
 
       <StatusTabs tabs={VIEW_TABS} value={view} onChange={setView} />
 
+      <div className={cn(view !== 'setup' && 'hidden')}>
+        <SandboxIntegrationSection />
+      </div>
       <div className={cn(view !== 'invoices' && 'hidden')}>
         <InvoicesPanel />
       </div>

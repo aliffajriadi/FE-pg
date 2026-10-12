@@ -123,6 +123,7 @@ export const merchantApi = {
   deleteProject: (id: number) => fetchApi<Msg>(`/merchant/projects/${id}`, json('DELETE')),
 
   getApiKeys: () => fetchApi<ApiResponse<ApiKey[]>>('/merchant/api-keys'),
+  deleteApiKey: (id: number) => fetchApi<Msg>(`/merchant/api-keys/${id}`, json('DELETE')),
   createApiKey: (body: { name: string; projectId?: number; mode?: IntegrationMode }) =>
     fetchApi<ApiResponse<ApiKey>>('/merchant/api-keys', json('POST', body)),
 

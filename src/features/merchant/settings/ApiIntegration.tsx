@@ -45,10 +45,25 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 }
 
 function ApiKeyItem({ apiKey }: { apiKey: ApiKey }) {
+  const remove = useApiMutation(() => merchantApi.deleteApiKey(apiKey.id), { invalidate: INTEGRATION_KEYS });
   return (
     <div className="space-y-1 rounded-lg border bg-background p-3">
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className="truncate">{apiKey.name}</span> <ActiveBadge active={apiKey.isActive} />
+        {apiKey.isSandbox && (
+          <ConfirmAction
+            destructive
+            variant="ghost"
+            size="xs"
+            className="ml-auto text-destructive"
+            title={`Hapus API Key "${apiKey.name}"?`}
+            description="Aplikasi yang masih memakai key ini tidak akan bisa mengakses sandbox lagi."
+            confirmLabel="Hapus"
+            onConfirm={() => remove.mutateAsync()}
+          >
+            <Trash2 /> Hapus
+          </ConfirmAction>
+        )}
       </div>
       <div className="flex items-center gap-1">
         <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{apiKey.key}</code>
@@ -178,7 +193,7 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
           <p className="text-sm text-muted-foreground">
             {sandbox
               ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari yang live.'
-              : 'Tiap proyek mendapat 1 API Key dan 1 Webhook (live dan sandbox dihitung bersama). Proyek baru harus diajukan dan disetujui admin.'}
+              : 'Tiap proyek mendapat 1 API Key dan 1 Webhook live. Proyek baru harus diajukan dan disetujui admin.'}
           </p>
         </div>
         <RequestProjectDialog />
@@ -311,6 +326,9 @@ export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
   const keyCount = apiKeys.data?.length ?? 0;
   const webhookCount = webhooks.data?.length ?? 0;
 
+  // Integrasi global tidak ditawarkan lagi: hanya tampil bagi merchant yang sudah memakainya
+  if (apiKeys.isLoading || webhooks.isLoading || (!keyCount && !webhookCount)) return null;
+
   return (
     <details className="group overflow-hidden rounded-xl border bg-card">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
@@ -318,7 +336,7 @@ export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
         <span className="min-w-0">
           <span className="block font-medium">Integrasi Global (tanpa proyek)</span>
           <span className="block text-xs text-muted-foreground">
-            Untuk invoice yang dibuat tanpa proyek, misalnya dari Dashboard.
+            Untuk invoice yang dibuat tanpa proyek. Fitur lama, proyek baru perlu diajukan.
           </span>
         </span>
         <span className="flex gap-1.5">
@@ -348,5 +366,50 @@ export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
         </ItemColumn>
       </div>
     </details>
+  );
+}
+
+/** API Key & Webhook sandbox untuk halaman Sandbox: bebas dibuat, tanpa proyek maupun pengajuan. */
+export function SandboxIntegrationSection() {
+  const apiKeys = useQuery({
+    queryKey: ['merchant-api-keys'],
+    queryFn: merchantApi.getApiKeys,
+    select: (res) => res.data.filter(isKeyIn('SANDBOX')),
+  });
+  const webhooks = useQuery({
+    queryKey: ['merchant-webhooks'],
+    queryFn: merchantApi.getWebhooks,
+    select: (res) => res.data.filter(isWebhookIn('SANDBOX')),
+  });
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card size="sm">
+        <CardContent className="space-y-3">
+          <ItemColumn icon={KeyRound} title="API Key Sandbox" action={<CreateApiKeyDialog label="Buat Key" variant="outline" mode="SANDBOX" />}>
+            {apiKeys.isLoading ? (
+              <Skeleton className="h-16 rounded-lg" />
+            ) : apiKeys.data?.length ? (
+              apiKeys.data.map((k) => <ApiKeyItem key={k.id} apiKey={k} />)
+            ) : (
+              <EmptyLine>Belum ada API Key sandbox. Klik &ldquo;Buat Key&rdquo; untuk mulai.</EmptyLine>
+            )}
+          </ItemColumn>
+        </CardContent>
+      </Card>
+      <Card size="sm">
+        <CardContent className="space-y-3">
+          <ItemColumn icon={WebhookIcon} title="Webhook Sandbox" action={<CreateWebhookDialog label="Tambah Webhook" variant="outline" mode="SANDBOX" />}>
+            {webhooks.isLoading ? (
+              <Skeleton className="h-16 rounded-lg" />
+            ) : webhooks.data?.length ? (
+              webhooks.data.map((w) => <WebhookItem key={w.id} webhook={w} />)
+            ) : (
+              <EmptyLine>Belum ada webhook sandbox. Opsional, untuk menerima notifikasi uji coba.</EmptyLine>
+            )}
+          </ItemColumn>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
