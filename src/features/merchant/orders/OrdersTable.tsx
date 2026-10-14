@@ -20,6 +20,7 @@ import { DateRangeFilter, EMPTY_RANGE, rangeToQuery } from '@/components/shared/
 import { ExportButton } from '@/components/shared/ExportButton';
 import { exportTransactions } from '@/lib/export-transactions';
 import { CreateOrderDialog } from './CreateOrderDialog';
+import { ReportOrderDialog } from './ReportOrderDialog';
 
 const STATUS_TABS = [
   { value: '', label: 'Semua' },
@@ -28,6 +29,9 @@ const STATUS_TABS = [
   { value: 'EXPIRED', label: 'Kedaluwarsa' },
   { value: 'CANCELLED', label: 'Dibatalkan' },
 ];
+
+// Laporan hanya relevan saat transaksi belum masuk (menunggu) atau dibatalkan.
+const REPORTABLE_STATUSES = ['PENDING', 'WAITING_PAYMENT', 'CANCELLED'];
 
 export default function OrdersTable() {
   const [page, setPage] = useState(1);
@@ -159,6 +163,7 @@ export default function OrdersTable() {
                         <ExternalLink />
                       </a>
                     )}
+                    {REPORTABLE_STATUSES.includes(order.paymentStatus) && <ReportOrderDialog order={order} />}
                   </div>
                 </TableCell>
               </TableRow>
