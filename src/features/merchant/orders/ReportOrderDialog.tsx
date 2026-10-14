@@ -85,9 +85,12 @@ type ReportForm = z.infer<typeof reportSchema>;
 
 /** Rangkuman transaksi yang ikut terkirim di pesan tiket, agar admin tidak perlu bertanya ulang. */
 function buildMessage(order: Order, reason: Reason, note: string) {
+  // Keterangan merchant ditaruh di depan: notifikasi admin hanya memuat cuplikan awal pesan.
   const lines = [
-    `Jenis kendala: ${reason.label}`,
+    `Kendala: ${reason.label}`,
+    note,
     '',
+    '--- Data transaksi ---',
     `Kode Invoice: ${order.invoiceCode}`,
     `Produk: ${order.productName}`,
     `Pelanggan: ${order.customerName || '-'}${order.customerContact ? ` (${order.customerContact})` : ''}`,
@@ -98,9 +101,6 @@ function buildMessage(order: Order, reason: Reason, note: string) {
     order.pgReference ? `Referensi: ${order.pgReference}` : null,
     `Dibuat: ${formatDate(order.createdAt)}`,
     order.paidAt ? `Dibayar: ${formatDate(order.paidAt)}` : null,
-    '',
-    'Keterangan merchant:',
-    note,
   ];
   return lines.filter((line) => line !== null).join('\n');
 }
