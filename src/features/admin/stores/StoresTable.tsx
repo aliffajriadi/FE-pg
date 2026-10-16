@@ -44,6 +44,11 @@ export default function StoresTable() {
     { ...options, successMessage: 'Pengaturan invoice manual disimpan' }
   );
 
+  const toggleMypg = useApiMutation(
+    ({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreMypg(id, enabled),
+    { ...options, successMessage: 'Akses MyPG disimpan' }
+  );
+
   const stores = data?.data ?? [];
 
   return (
@@ -70,11 +75,12 @@ export default function StoresTable() {
               <TableHead>Transaksi Hari Ini</TableHead>
               <TableHead>Auto WD</TableHead>
               <TableHead>Invoice Manual</TableHead>
+              <TableHead>MyPG</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={9} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
+            <TableState colSpan={10} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
             {stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
@@ -111,6 +117,14 @@ export default function StoresTable() {
                     onCheckedChange={(checked) => toggleManualInvoice.mutate({ id: store.id, enabled: checked })}
                     disabled={toggleManualInvoice.isPending}
                     aria-label={`Invoice manual ${store.name}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={!!store.mypgEnabled}
+                    onCheckedChange={(checked) => toggleMypg.mutate({ id: store.id, enabled: checked })}
+                    disabled={toggleMypg.isPending}
+                    aria-label={`Akses MyPG ${store.name}`}
                   />
                 </TableCell>
                 <TableCell>

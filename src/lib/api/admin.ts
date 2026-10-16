@@ -1,5 +1,6 @@
 import { fetchApi, fetchBlob, toQuery } from './client';
 import type { MerchantTier, TierBasis } from './merchant';
+import type { MypgNotification, MypgOrder, MypgProvider } from './mypg';
 import type {
   AdminLog,
   ApiResponse,
@@ -54,6 +55,48 @@ export type AdminStore = Store & {
   effectiveDailyTxLimit: number;
   dailyTxUsed: number;
 };
+
+export interface AdminMypgMerchant {
+  id: number;
+  name: string;
+  status: string;
+  mypgActiveUntil: string | null;
+  user: { name: string; email: string };
+  activeQris: { name: string; provider: MypgProvider } | null;
+  deviceCount: number;
+  onlineDevices: number;
+  lastNotificationAt: string | null;
+  paidCount: number;
+  paidVolume: number;
+  todayCount: number;
+  todayVolume: number;
+}
+export interface MypgAppConfig {
+  latestVersionCode: number;
+  latestVersionName: string;
+  minVersionCode: number;
+  downloadUrl: string;
+  changelog: string;
+  announcement: string;
+  announcementTone: 'info' | 'warning' | 'success';
+}
+
+export type MypgLicenseStatus = 'UNUSED' | 'REDEEMED' | 'REVOKED';
+export interface MypgLicense {
+  id: number;
+  code: string;
+  durationDays: number;
+  status: MypgLicenseStatus;
+  note: string | null;
+  redeemedAt: string | null;
+  activeFrom: string | null;
+  activeUntil: string | null;
+  createdAt: string;
+  store: { id: number; name: string } | null;
+  createdBy?: { name: string };
+}
+
+export type AdminMypgOrder = MypgOrder & { store: { id: number; name: string } };
 
 export type RankingPeriod = 'today' | '7d' | '30d' | 'all';
 export type RankingSort = 'count' | 'volume' | 'fee' | 'average';
@@ -269,6 +312,24 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
   updateStoreDailyTxLimit: (id: number, dailyTxLimit: number | null) =>
     fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
+  updateStoreMypg: (id: number, enabled: boolean) =>
+    fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
+  getMypgMerchants: () => fetchApi<ApiResponse<AdminMypgMerchant[]>>('/admin/mypg/merchants'),
+  getMypgAppConfig: () =>
+    fetchApi<ApiResponse<{ config: MypgAppConfig; versions: { code: number; name: string | null; devices: number }[] }>>('/admin/mypg/app-config'),
+  updateMypgAppConfig: (body: Partial<MypgAppConfig>) =>
+    fetchApi<ApiResponse<MypgAppConfig>>('/admin/mypg/app-config', json('PUT', body)),
+  getMypgLicenses: (params: ListParams & { status?: MypgLicenseStatus }) =>
+    fetchApi<PaginatedResponse<MypgLicense> & { counts: Partial<Record<MypgLicenseStatus, number>> }>(
+      `/admin/mypg/licenses${toQuery({ ...params })}`
+    ),
+  generateMypgLicenses: (body: { durationDays: number; count: number; note?: string }) =>
+    fetchApi<ApiResponse<MypgLicense[]>>('/admin/mypg/licenses', json('POST', body)),
+  revokeMypgLicense: (id: number) => fetchApi<Msg>(`/admin/mypg/licenses/${id}/revoke`, json('POST')),
+  getMypgOrders: (params: ListParams & { status?: string }) =>
+    fetchApi<PaginatedResponse<AdminMypgOrder>>(`/admin/mypg/orders${toQuery({ ...params })}`),
+  getMypgNotifications: (params: { page?: number; status?: string }) =>
+    fetchApi<PaginatedResponse<MypgNotification>>(`/admin/mypg/notifications${toQuery({ ...params })}`),
   updateStoreManualInvoice: (id: number, enabled: boolean) =>
     fetchApi<Msg>(`/admin/stores/${id}/manual-invoice`, json('PATCH', { enabled })),
   getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),

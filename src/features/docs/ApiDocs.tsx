@@ -4,20 +4,21 @@ import { cn } from '@/lib/utils';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Logo } from '@/components/shared/Logo';
-import {
-  ENDPOINTS,
-  HTTP_CODES,
-  PAYMENT_STATUSES,
-  START_STEPS,
-  VERIFY_NODE,
-  VERIFY_PHP,
-  WEBHOOK_PAYLOAD,
-  WEBHOOK_STEPS,
-} from './content';
+import { HTTP_CODES, LIVE_DOCS, VERIFY_NODE, VERIFY_PHP, type DocsVariant } from './content';
+import { MYPG_DOCS } from './content-mypg';
 
-const NAV = [
-  { group: 'Memulai', items: [['getting-started', 'Panduan Awal'], ['authentication', 'Autentikasi'], ['projects', 'Sistem Proyek'], ['errors', 'Error Handling']] },
-  { group: 'Invoice API', items: ENDPOINTS.map((e) => [e.id, e.summary]) },
+const navFor = (docs: DocsVariant, mypg: boolean) => [
+  {
+    group: 'Memulai',
+    items: [
+      ['getting-started', 'Panduan Awal'],
+      ...(mypg ? [['detection', 'Cara Deteksi Pembayaran']] : []),
+      ['authentication', 'Autentikasi'],
+      ['projects', 'Sistem Proyek'],
+      ['errors', 'Error Handling'],
+    ],
+  },
+  { group: 'Invoice API', items: docs.endpoints.map((e) => [e.id, e.summary]) },
   { group: 'Sandbox', items: [['sandbox', 'Uji Coba (Sandbox)'], ['sandbox-simulate', 'Simulasi Pembayaran']] },
   { group: 'Webhook', items: [['webhook', 'Cara Kerja'], ['webhook-payload', 'Format Payload'], ['webhook-signature', 'Verifikasi Signature']] },
   { group: 'Referensi', items: [['payment-status', 'Status Pembayaran']] },
@@ -107,15 +108,19 @@ function SimpleTable({ head, rows }: { head: string[]; rows: React.ReactNode[][]
   );
 }
 
-export default function ApiDocs() {
-  const baseUrl = `${API_URL}/v1`;
+export default function ApiDocs({ variant = 'live' }: { variant?: 'live' | 'mypg' }) {
+  const mypg = variant === 'mypg';
+  const docs = mypg ? MYPG_DOCS : LIVE_DOCS;
+  const NAV = navFor(docs, mypg);
+  const baseUrl = `${API_URL}${docs.apiPath.replace(/^\/api/, '')}`;
+  const pk = docs.keyPrefix;
 
   return (
     <div className="mx-auto flex max-w-7xl gap-10 px-4 py-8 md:px-8">
       <aside className="sticky top-8 hidden h-[calc(100vh-4rem)] w-56 shrink-0 space-y-6 overflow-y-auto lg:block">
         <div>
           <Logo />
-          <p className="mt-1 text-xs text-muted-foreground">Dokumentasi API · v1.0</p>
+          <p className="mt-1 text-xs text-muted-foreground">{mypg ? 'Dokumentasi MyPG · v1.0' : 'Dokumentasi API · v1.0'}</p>
         </div>
         {NAV.map((group) => (
           <div key={group.group} className="space-y-1">
@@ -133,8 +138,8 @@ export default function ApiDocs() {
         <header className="space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Dokumentasi API Merchant</h1>
-              <p className="mt-1 text-muted-foreground">Hubungkan bot otomatis Anda ke dashboard dalam hitungan menit.</p>
+              <h1 className="text-3xl font-bold tracking-tight">{docs.title}</h1>
+              <p className="mt-1 text-muted-foreground">{docs.tagline}</p>
             </div>
             <ThemeToggle />
           </div>
@@ -145,17 +150,40 @@ export default function ApiDocs() {
         </header>
 
         <Section id="getting-started" title="Panduan Awal" desc="Langkah-langkah untuk mulai menggunakan API.">
-          <Steps steps={START_STEPS} />
+          <Steps steps={docs.startSteps} />
         </Section>
 
-        <Section id="authentication" title="Autentikasi" desc="Semua request ke /api/v1/* wajib menyertakan API Key di header.">
+        {mypg && (
+          <Section
+            id="detection"
+            title="Cara Deteksi Pembayaran"
+            desc="MyPG tidak memakai penyedia pembayaran pihak ketiga. Pembayaran dikenali dari notifikasi di HP Anda."
+          >
+            <SimpleTable
+              head={['Komponen', 'Keterangan']}
+              rows={[
+                ['QRIS', 'QRIS statis milik Anda (DANA Bisnis, ShopeePay, atau GoPay). Setiap invoice dibuatkan QRIS dinamis dengan nominal terisi.'],
+                ['Kode unik', 'Jika ada invoice lain yang menunggu dengan nominal sama, total ditambah beberapa rupiah (maksimal 999, diatur di Pengaturan MyPG) agar tiap invoice punya total berbeda.'],
+                ['Tandai manual', 'Bila notifikasi terlewat, merchant bisa menandai invoice lunas dari halaman Transaksi. Webhook payment.paid tetap dikirim (bisa dimatikan).'],
+                ['APK', 'Aplikasi di HP penerima yang meneruskan notifikasi uang masuk ke server. Diatur di menu Perangkat & QRIS.'],
+                ['Pencocokan', 'Nominal di notifikasi dicocokkan dengan totalAmount invoice yang masih menunggu. Bila cocok, invoice menjadi PAID dan webhook dikirim.'],
+              ]}
+            />
+            <Callout tone="warning">
+              Pelanggan harus membayar tepat sebesar totalAmount. HP penerima harus menyala, terhubung internet, dan APK berjalan agar
+              pembayaran terdeteksi. Invoice yang tidak dibayar kedaluwarsa sesuai batas waktu di Pengaturan MyPG (default 24 jam).
+            </Callout>
+          </Section>
+        )}
+
+        <Section id="authentication" title="Autentikasi" desc={`Semua request ke ${docs.apiPath}/* wajib menyertakan API Key di header.`}>
           <SimpleTable
             head={['Header', 'Tipe', 'Keterangan']}
-            rows={[[<code key="h">x-api-key</code>, 'string', 'API Key dari Dashboard. Format: pk_live_xxxx']]}
+            rows={[[<code key="h">x-api-key</code>, 'string', `API Key dari ${mypg ? 'Panel MyPG' : 'Dashboard'}. Format: ${pk}_live_xxxx`]]}
           />
           <Code>{`curl -X POST ${baseUrl}/invoices \\
   -H "Content-Type: application/json" \\
-  -H "x-api-key: pk_live_abc123xyz..." \\
+  -H "x-api-key: ${pk}_live_abc123xyz..." \\
   -d '{...}'`}</Code>
           <Callout>
             API Key terikat ke Proyek. Notifikasi webhook hanya dikirim ke webhook di proyek yang sama dengan API Key yang
@@ -164,21 +192,16 @@ export default function ApiDocs() {
         </Section>
 
         <Section id="projects" title="Sistem Proyek" desc="Setiap proyek memiliki API Key dan Webhook sendiri yang terpisah.">
-          <p className="text-sm text-muted-foreground">
-            Jika Anda mengelola beberapa aplikasi (misal App Kasir dan Website Toko), buat proyek terpisah untuk masing-masing.
-            Ketika App Kasir membuat invoice dengan API Key-nya, notifikasi hanya dikirim ke webhook App Kasir.
-          </p>
+          <p className="text-sm text-muted-foreground">{docs.projectsDesc}</p>
           <Code>{`Merchant (Toko)
   ├── Proyek "App Kasir"
-  │     ├── API Key: pk_live_aaa...
+  │     ├── API Key: ${pk}_live_aaa...
   │     └── Webhook: https://app-kasir.com/webhook
   │
   └── Proyek "Website Toko"
-        ├── API Key: pk_live_bbb...
+        ├── API Key: ${pk}_live_bbb...
         └── Webhook: https://website-toko.com/webhook`}</Code>
-          <Callout tone="warning">
-            API Key atau Webhook yang tidak terikat proyek bersifat global — aktif untuk invoice yang dibuat dari Dashboard.
-          </Callout>
+          <Callout tone="warning">{docs.projectsNote}</Callout>
         </Section>
 
         <Section id="errors" title="Error Handling" desc="Semua response mengikuti format yang konsisten.">
@@ -204,7 +227,7 @@ export default function ApiDocs() {
               Buat dan kelola invoice pembayaran. Semua endpoint memerlukan header <code>x-api-key</code>.
             </p>
           </div>
-          {ENDPOINTS.map((ep) => (
+          {docs.endpoints.map((ep) => (
             <details key={ep.id} id={ep.id} className="group scroll-mt-6 rounded-xl border" open={ep.id === 'create-invoice'}>
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 p-4">
                 <span className={cn('rounded px-2 py-0.5 font-mono text-xs font-bold', METHOD_CLASS[ep.method])}>{ep.method}</span>
@@ -242,21 +265,19 @@ export default function ApiDocs() {
           desc="Coba integrasi Anda tanpa memproses pembayaran sungguhan. Tidak ada uang yang berpindah."
         >
           <p className="text-sm text-muted-foreground">
-            Buat API Key sandbox di Dashboard (menu Integrasi API, tab Sandbox). Formatnya{' '}
-            <code className="font-mono">pk_test_xxxx</code>. Endpoint, header, request, dan response-nya sama dengan API asli,
+            {docs.sandboxWhere} Formatnya <code className="font-mono">{pk}_test_xxxx</code>. Endpoint, header, request, dan response-nya sama dengan API asli,
             jadi untuk go-live Anda cukup mengganti key.
           </p>
           <Code>{`curl -X POST ${baseUrl}/invoices \
   -H "Content-Type: application/json" \
-  -H "x-api-key: pk_test_abc123xyz..." \
+  -H "x-api-key: ${pk}_test_abc123xyz..." \
   -d '{"productName":"Produk Uji","amount":10000}'`}</Code>
           <SimpleTable
             head={['', 'Live', 'Sandbox']}
             rows={[
-              ['API Key', <code key="a">pk_live_...</code>, <code key="b">pk_test_...</code>],
+              ['API Key', <code key="a">{pk}_live_...</code>, <code key="b">{pk}_test_...</code>],
               ['Kode invoice', <code key="c">INV-...</code>, <code key="d">SBX-...</code>],
-              ['Pembayaran', 'QRIS sungguhan', 'Halaman bayar palsu, tidak bisa dibayar'],
-              ['Saldo & penarikan', 'Bertambah saat dibayar', 'Tidak pernah berubah'],
+              ...docs.sandboxRows,
               ['Webhook', 'Ke webhook live', 'Hanya ke webhook sandbox'],
               ['Penyimpanan', 'Permanen', 'Dihapus otomatis setelah 7 hari'],
             ]}
@@ -277,7 +298,7 @@ export default function ApiDocs() {
             simulasi. Untuk tes otomatis, panggil endpoint ini dengan key sandbox:
           </p>
           <Code>{`POST ${baseUrl}/sandbox/invoices/SBX-1700000000000-AB12/simulate
-x-api-key: pk_test_abc123xyz...
+x-api-key: ${pk}_test_abc123xyz...
 
 { "status": "paid" }   // paid | failed | expired`}</Code>
           <SimpleTable
@@ -298,7 +319,7 @@ x-api-key: pk_test_abc123xyz...
         </Section>
 
         <Section id="webhook" title="Webhook" desc="Sistem mengirim notifikasi otomatis ke endpoint Anda saat status pembayaran berubah.">
-          <Steps steps={WEBHOOK_STEPS} />
+          <Steps steps={docs.webhookSteps} />
           <Callout tone="warning">
             Webhook dikirim dengan timeout 10 detik. Gunakan queue/background job untuk proses yang memakan waktu lama.
           </Callout>
@@ -313,7 +334,7 @@ x-api-key: pk_test_abc123xyz...
               ['X-Webhook-Signature', 'HMAC-SHA256 dari body — untuk verifikasi keaslian'],
             ]}
           />
-          <Code>{WEBHOOK_PAYLOAD}</Code>
+          <Code>{docs.webhookPayload}</Code>
           <Callout>Gunakan field externalId untuk mencocokkan invoice dengan order di sistem Anda.</Callout>
         </Section>
 
@@ -335,7 +356,7 @@ x-api-key: pk_test_abc123xyz...
         <Section id="payment-status" title="Status Pembayaran" desc="Nilai yang mungkin muncul di field paymentStatus.">
           <SimpleTable
             head={['Status', 'Keterangan']}
-            rows={PAYMENT_STATUSES.map(([status, desc]) => [<StatusBadge key={status} status={status} label={status} />, desc])}
+            rows={docs.paymentStatuses.map(([status, desc]) => [<StatusBadge key={status} status={status} label={status} />, desc])}
           />
           <p className="pt-4 text-center text-xs text-muted-foreground">Perlu bantuan? Hubungi support melalui Dashboard. — API v1.0</p>
         </Section>

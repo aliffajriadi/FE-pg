@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CheckCircle2, FolderPlus, Info, Loader2, Plus, Send } from 'lucide-react';
 import { merchantApi } from '@/lib/api/merchant';
+import { mypgApi } from '@/lib/api/mypg';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import type { IntegrationMode } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { FormField } from '@/components/shared/FormField';
 import { CopyField } from '@/components/shared/CopyField';
 
-export const INTEGRATION_KEYS = [['merchant-projects'], ['merchant-webhooks'], ['merchant-api-keys']];
+import { integrationKeysOf, useIntegrationClient } from './integration-client';
 
 type ButtonProps = { label: string; size?: 'sm' | 'default'; variant?: 'default' | 'outline'; mode?: IntegrationMode };
 
@@ -162,16 +163,64 @@ export function RequestProjectDialog() {
   );
 }
 
+// ─── Proyek langsung (MyPG, tanpa pengajuan) ────────────────
+export function CreateProjectDialog() {
+  const client = useIntegrationClient();
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof nameSchema>>({ resolver: zodResolver(nameSchema) });
+  const mutation = useApiMutation(({ name }: { name: string }) => mypgApi.createProject({ name }), {
+    successMessage: 'Proyek dibuat',
+    invalidate: integrationKeysOf(client),
+    onSuccess: () => setOpen(false),
+  });
+
+  return (
+    <>
+      <Button
+        size="sm"
+        onClick={() => {
+          form.reset({ name: '' });
+          setOpen(true);
+        }}
+      >
+        <Plus /> Buat Proyek
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Buat Proyek MyPG</DialogTitle>
+            <DialogDescription>Satu proyek untuk tiap aplikasi atau bot. Masing-masing punya API Key dan Webhook sendiri.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+            <FormField label="Nama Proyek" htmlFor="mypg-project-name" error={form.formState.errors.name?.message}>
+              <Input id="mypg-project-name" placeholder="Contoh: Bot Telegram Toko" autoComplete="off" {...form.register('name')} />
+            </FormField>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Membuat...' : 'Buat Proyek'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── API key ─────────────────────────────────────────────────
 export function CreateApiKeyDialog({ projectId, projectName, label, size = 'sm', variant = 'default', mode = 'LIVE' }: ButtonProps & { projectId?: number; projectName?: string }) {
   const sandbox = mode === 'SANDBOX';
+  const client = useIntegrationClient();
   const [open, setOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const form = useForm<z.infer<typeof nameSchema>>({ resolver: zodResolver(nameSchema) });
 
-  const mutation = useApiMutation(({ name }: { name: string }) => merchantApi.createApiKey({ name, projectId, mode }), {
+  const mutation = useApiMutation(({ name }: { name: string }) => client.api.createApiKey({ name, projectId, mode }), {
     successMessage: sandbox ? 'API Key sandbox berhasil dibuat' : 'API Key berhasil dibuat',
-    invalidate: INTEGRATION_KEYS,
+    invalidate: integrationKeysOf(client),
     onSuccess: (res) => setCreatedKey(res.data.key),
   });
 
@@ -201,7 +250,7 @@ export function CreateApiKeyDialog({ projectId, projectName, label, size = 'sm',
               hint={
                 sandbox
                   ? 'Gunakan sebagai header x-api-key. Hanya untuk uji coba: tidak ada uang yang berpindah.'
-                  : 'Gunakan sebagai header x-api-key saat memanggil API.'
+                  : `Gunakan sebagai header x-api-key saat memanggil ${client.apiPath}.`
               }
               onDone={() => setOpen(false)}
             />
@@ -234,14 +283,15 @@ const webhookSchema = z.object({
 
 export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm', variant = 'default', mode = 'LIVE' }: ButtonProps & { projectId?: number; projectName?: string }) {
   const sandbox = mode === 'SANDBOX';
+  const client = useIntegrationClient();
   const [open, setOpen] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
   const form = useForm<z.infer<typeof webhookSchema>>({ resolver: zodResolver(webhookSchema) });
   const { errors } = form.formState;
 
-  const mutation = useApiMutation((data: z.infer<typeof webhookSchema>) => merchantApi.createWebhook({ ...data, projectId, mode }), {
+  const mutation = useApiMutation((data: z.infer<typeof webhookSchema>) => client.api.createWebhook({ ...data, projectId, mode }), {
     successMessage: sandbox ? 'Webhook sandbox berhasil ditambahkan' : 'Webhook berhasil ditambahkan',
-    invalidate: INTEGRATION_KEYS,
+    invalidate: integrationKeysOf(client),
     onSuccess: (res) => setSecret(res.data.secret),
   });
 
@@ -306,11 +356,12 @@ export function CreateWebhookDialog({ projectId, projectName, label, size = 'sm'
 
 /** Regenerate secret: konfirmasi lalu tampilkan secret baru. */
 export function RegenerateSecretDialog({ webhookId }: { webhookId: number }) {
+  const client = useIntegrationClient();
   const [open, setOpen] = useState(false);
   const [secret, setSecret] = useState<string | null>(null);
-  const mutation = useApiMutation(() => merchantApi.regenerateWebhookSecret(webhookId), {
+  const mutation = useApiMutation(() => client.api.regenerateWebhookSecret(webhookId), {
     successMessage: 'Secret key baru dibuat',
-    invalidate: INTEGRATION_KEYS,
+    invalidate: integrationKeysOf(client),
     onSuccess: (res) => setSecret(res.data.secret),
   });
 

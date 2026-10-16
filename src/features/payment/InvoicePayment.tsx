@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock, Loader2, QrCode, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
 import { paymentApi } from '@/lib/api/support';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 
 const INACTIVE = ['EXPIRED', 'CANCELLED', 'FAILED', 'REFUNDED'];
@@ -24,10 +24,10 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-export default function InvoicePayment({ invoiceCode }: { invoiceCode: string }) {
+export default function InvoicePayment({ invoiceCode, source = 'live' }: { invoiceCode: string; source?: 'live' | 'mypg' }) {
   const { data: invoice, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['invoice', invoiceCode],
-    queryFn: () => paymentApi.getInvoice(invoiceCode),
+    queryKey: ['invoice', source, invoiceCode],
+    queryFn: () => (source === 'mypg' ? paymentApi.getMypgInvoice(invoiceCode) : paymentApi.getInvoice(invoiceCode)),
     select: (res) => res.data,
     // Cek status otomatis tiap 5 detik selama belum dibayar / belum kedaluwarsa
     refetchInterval: (query) => {
@@ -168,6 +168,12 @@ export default function InvoicePayment({ invoiceCode }: { invoiceCode: string })
 
         {isPaid && (
           <p className="text-sm text-muted-foreground">Terima kasih! Pembayaran Anda telah kami terima.</p>
+        )}
+
+        {isPaid && invoice.returnUrl && (
+          <a href={invoice.returnUrl} rel="noopener noreferrer" className={buttonVariants({ size: 'lg', className: 'mt-auto w-full' })}>
+            Kembali ke {invoice.storeName}
+          </a>
         )}
 
        

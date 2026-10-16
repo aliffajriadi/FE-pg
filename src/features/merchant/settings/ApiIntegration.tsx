@@ -27,11 +27,12 @@ import { formatDate } from '@/lib/utils';
 import type { ApiKey, IntegrationMode, Webhook } from '@/types';
 import {
   CreateApiKeyDialog,
+  CreateProjectDialog,
   RequestProjectDialog,
   CreateWebhookDialog,
-  INTEGRATION_KEYS,
   RegenerateSecretDialog,
 } from './IntegrationDialogs';
+import { integrationKeysOf, useIntegrationClient } from './integration-client';
 
 const isKeyIn = (mode: IntegrationMode) => (k: ApiKey) => (k.isSandbox === true) === (mode === 'SANDBOX');
 const isWebhookIn = (mode: IntegrationMode) => (w: Webhook) => (w.mode === 'SANDBOX') === (mode === 'SANDBOX');
@@ -45,19 +46,24 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 }
 
 function ApiKeyItem({ apiKey }: { apiKey: ApiKey }) {
-  const remove = useApiMutation(() => merchantApi.deleteApiKey(apiKey.id), { invalidate: INTEGRATION_KEYS });
+  const client = useIntegrationClient();
+  const remove = useApiMutation(() => client.api.deleteApiKey(apiKey.id), { invalidate: integrationKeysOf(client) });
   return (
     <div className="space-y-1 rounded-lg border bg-background p-3">
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className="truncate">{apiKey.name}</span> <ActiveBadge active={apiKey.isActive} />
-        {apiKey.isSandbox && (
+        {(apiKey.isSandbox || client.canDeleteLiveKeys) && (
           <ConfirmAction
             destructive
             variant="ghost"
             size="xs"
             className="ml-auto text-destructive"
             title={`Hapus API Key "${apiKey.name}"?`}
-            description="Aplikasi yang masih memakai key ini tidak akan bisa mengakses sandbox lagi."
+            description={
+              apiKey.isSandbox
+                ? 'Aplikasi yang masih memakai key ini tidak akan bisa mengakses sandbox lagi.'
+                : 'Aplikasi yang masih memakai key ini tidak akan bisa membuat invoice lagi.'
+            }
             confirmLabel="Hapus"
             onConfirm={() => remove.mutateAsync()}
           >
@@ -75,13 +81,14 @@ function ApiKeyItem({ apiKey }: { apiKey: ApiKey }) {
 
 function WebhookItem({ webhook }: { webhook: Webhook }) {
   const [showSecret, setShowSecret] = useState(false);
-  const options = { invalidate: INTEGRATION_KEYS };
-  const test = useApiMutation(() => merchantApi.testWebhook(webhook.id));
-  const toggle = useApiMutation(() => merchantApi.updateWebhook(webhook.id, { isActive: !webhook.isActive }), {
+  const client = useIntegrationClient();
+  const options = { invalidate: integrationKeysOf(client) };
+  const test = useApiMutation(() => client.api.testWebhook(webhook.id));
+  const toggle = useApiMutation(() => client.api.updateWebhook(webhook.id, { isActive: !webhook.isActive }), {
     ...options,
     successMessage: webhook.isActive ? 'Webhook dijeda' : 'Webhook diaktifkan',
   });
-  const remove = useApiMutation(() => merchantApi.deleteWebhook(webhook.id), options);
+  const remove = useApiMutation(() => client.api.deleteWebhook(webhook.id), options);
 
   return (
     <div className="space-y-2 rounded-lg border bg-background p-3">
@@ -168,11 +175,19 @@ const ONBOARDING_STEPS = [
   'Tambahkan 1 Webhook agar aplikasi menerima notifikasi pesanan.',
 ];
 
+const MYPG_ONBOARDING_STEPS = [
+  'Buat proyek untuk aplikasi atau bot Anda. Langsung aktif, tanpa pengajuan.',
+  'Buat API Key MyPG (mp_live_...) untuk proyek tersebut.',
+  'Tambahkan Webhook agar aplikasi menerima notifikasi pembayaran.',
+];
+
 export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
   const sandbox = mode === 'SANDBOX';
+  const client = useIntegrationClient();
+  const direct = client.directProjects;
   const { data: rawProjects, isLoading, error } = useQuery({
-    queryKey: ['merchant-projects'],
-    queryFn: merchantApi.getProjects,
+    queryKey: client.keys.projects,
+    queryFn: client.api.getProjects,
     select: (res) => res.data,
   });
   // Tiap proyek hanya menampilkan key & webhook sesuai mode yang dipilih
@@ -181,7 +196,7 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
     apiKeys: p.apiKeys.filter(isKeyIn(mode)),
     webhooks: p.webhooks.filter(isWebhookIn(mode)),
   }));
-  const remove = useApiMutation(merchantApi.deleteProject, { invalidate: INTEGRATION_KEYS });
+  const remove = useApiMutation(client.api.deleteProject, { invalidate: integrationKeysOf(client) });
 
   return (
     <section className="space-y-3">
@@ -193,10 +208,12 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
           <p className="text-sm text-muted-foreground">
             {sandbox
               ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari yang live.'
-              : 'Tiap proyek mendapat 1 API Key dan 1 Webhook live. Proyek baru harus diajukan dan disetujui admin.'}
+              : direct
+                ? 'Tiap proyek punya API Key dan Webhook MyPG sendiri. Proyek bisa langsung dibuat tanpa pengajuan.'
+                : 'Tiap proyek mendapat 1 API Key dan 1 Webhook live. Proyek baru harus diajukan dan disetujui admin.'}
           </p>
         </div>
-        <RequestProjectDialog />
+        {direct ? <CreateProjectDialog /> : <RequestProjectDialog />}
       </div>
 
       {isLoading ? (
@@ -206,9 +223,9 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
       ) : !projects?.length ? (
         <Card className="border-dashed">
           <CardContent className="space-y-4 py-4">
-            <p className="font-medium">Mulai integrasi dengan mengajukan proyek</p>
+            <p className="font-medium">{direct ? 'Mulai integrasi dengan membuat proyek' : 'Mulai integrasi dengan mengajukan proyek'}</p>
             <ol className="space-y-2 text-sm text-muted-foreground">
-              {ONBOARDING_STEPS.map((step, i) => (
+              {(direct ? MYPG_ONBOARDING_STEPS : ONBOARDING_STEPS).map((step, i) => (
                 <li key={step} className="flex gap-3">
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                     {i + 1}
@@ -264,7 +281,11 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
                     variant="ghost"
                     className="text-destructive"
                     title={`Hapus proyek "${project.name}"?`}
-                    description="API Key dan Webhook proyek ini tidak terhapus, hanya dilepas dari proyek dan menjadi global."
+                    description={
+                      direct
+                        ? 'API Key dan Webhook MyPG di proyek ini ikut dihapus dan tidak bisa dipakai lagi.'
+                        : 'API Key dan Webhook proyek ini tidak terhapus, hanya dilepas dari proyek dan menjadi global.'
+                    }
                     confirmLabel="Hapus Proyek"
                     onConfirm={() => remove.mutateAsync(project.id)}
                   >
@@ -312,14 +333,15 @@ export function ProjectRequestsSection() {
 /** API Key & Webhook tanpa proyek, disembunyikan di bagian yang bisa dibuka. */
 export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
   const sandbox = mode === 'SANDBOX';
+  const client = useIntegrationClient();
   const apiKeys = useQuery({
-    queryKey: ['merchant-api-keys'],
-    queryFn: merchantApi.getApiKeys,
+    queryKey: client.keys.apiKeys,
+    queryFn: client.api.getApiKeys,
     select: (res) => res.data.filter((k) => !k.projectId && isKeyIn(mode)(k)),
   });
   const webhooks = useQuery({
-    queryKey: ['merchant-webhooks'],
-    queryFn: merchantApi.getWebhooks,
+    queryKey: client.keys.webhooks,
+    queryFn: client.api.getWebhooks,
     select: (res) => res.data.filter((w) => !w.projectId && isWebhookIn(mode)(w)),
   });
 
@@ -371,14 +393,15 @@ export function GlobalIntegrationSection({ mode }: { mode: IntegrationMode }) {
 
 /** API Key & Webhook sandbox untuk halaman Sandbox: bebas dibuat, tanpa proyek maupun pengajuan. */
 export function SandboxIntegrationSection() {
+  const client = useIntegrationClient();
   const apiKeys = useQuery({
-    queryKey: ['merchant-api-keys'],
-    queryFn: merchantApi.getApiKeys,
+    queryKey: client.keys.apiKeys,
+    queryFn: client.api.getApiKeys,
     select: (res) => res.data.filter(isKeyIn('SANDBOX')),
   });
   const webhooks = useQuery({
-    queryKey: ['merchant-webhooks'],
-    queryFn: merchantApi.getWebhooks,
+    queryKey: client.keys.webhooks,
+    queryFn: client.api.getWebhooks,
     select: (res) => res.data.filter(isWebhookIn('SANDBOX')),
   });
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ChevronDown, ExternalLink, FlaskConical, Loader2, RotateCw } from 'lucide-react';
-import { merchantApi, type SandboxOutcome } from '@/lib/api/merchant';
+import type { SandboxOutcome } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -19,6 +19,7 @@ import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import type { SandboxOrder, WebhookDelivery } from '@/types';
 import { CreateSandboxInvoiceDialog } from './CreateSandboxInvoiceDialog';
 import { SandboxIntegrationSection } from '../settings/ApiIntegration';
+import { useIntegrationClient, type IntegrationClient } from '../settings/integration-client';
 
 const VIEW_TABS = [
   { value: 'setup', label: 'API Key & Webhook' },
@@ -36,25 +37,26 @@ const STATUS_TABS = [
 
 const ACTIVE = ['PENDING', 'WAITING_PAYMENT'];
 
-const STEPS = [
+const stepsFor = (client: IntegrationClient) => [
   <>
-    Buat <strong>API Key sandbox</strong> (<code className="font-mono">pk_test_...</code>) di tab API Key & Webhook, dan webhook
-    sandbox jika perlu. Bebas dibuat, tanpa pengajuan.
+    Buat <strong>API Key sandbox</strong> (<code className="font-mono">{client.keyPrefix}_test_...</code>) di tab API Key & Webhook,
+    dan webhook sandbox jika perlu. Bebas dibuat, tanpa pengajuan.
   </>,
   <>
-    Panggil endpoint yang sama (<code className="font-mono">/api/v1/invoices</code>) memakai key sandbox. Format request dan
-    response sama dengan yang asli.
+    Panggil endpoint yang sama (<code className="font-mono">{client.apiPath}/invoices</code>) memakai key sandbox. Format request
+    dan response sama dengan yang asli.
   </>,
   <>
     Simulasikan hasil pembayaran dari tab Invoice, atau lewat API{' '}
-    <code className="font-mono">POST /api/v1/sandbox/invoices/:kode/simulate</code>. Webhook sandbox akan terkirim.
+    <code className="font-mono">POST {client.apiPath}/sandbox/invoices/:kode/simulate</code>. Webhook sandbox akan terkirim.
   </>,
 ];
 
 function SimulateButtons({ order }: { order: SandboxOrder }) {
+  const client = useIntegrationClient();
   const mutation = useApiMutation(
-    (status: SandboxOutcome) => merchantApi.simulateSandboxInvoice(order.invoiceCode, status),
-    { successMessage: 'Simulasi dijalankan', invalidate: [['sandbox-invoices'], ['sandbox-deliveries']] }
+    (status: SandboxOutcome) => client.api.simulateSandboxInvoice(order.invoiceCode, status),
+    { successMessage: 'Simulasi dijalankan', invalidate: [[client.keys.sandboxInvoices], [client.keys.sandboxDeliveries]] }
   );
 
   if (!ACTIVE.includes(order.paymentStatus)) return <span className="text-xs text-muted-foreground">Selesai</span>;
@@ -86,9 +88,10 @@ function InvoicesPanel() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
 
+  const client = useIntegrationClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['sandbox-invoices', { page, status }],
-    queryFn: () => merchantApi.getSandboxInvoices({ page, status }),
+    queryKey: [client.keys.sandboxInvoices, { page, status }],
+    queryFn: () => client.api.getSandboxInvoices({ page, status }),
     placeholderData: keepPreviousData,
   });
   const orders = data?.data ?? [];
@@ -144,7 +147,7 @@ function InvoicesPanel() {
                   <div className="flex items-center justify-end gap-2">
                     <SimulateButtons order={o} />
                     <Link
-                      href={`/pay/sandbox/${o.invoiceCode}`}
+                      href={client.sandboxPayHref(o.invoiceCode)}
                       target="_blank"
                       className={buttonVariants({ variant: 'ghost', size: 'icon-xs' })}
                       aria-label="Buka halaman bayar sandbox"
@@ -175,9 +178,10 @@ function prettyJson(raw: string | null) {
 }
 
 function DeliveryItem({ delivery }: { delivery: WebhookDelivery }) {
-  const resend = useApiMutation(() => merchantApi.resendSandboxDelivery(delivery.id), {
+  const client = useIntegrationClient();
+  const resend = useApiMutation(() => client.api.resendSandboxDelivery(delivery.id), {
     successMessage: 'Webhook dikirim ulang',
-    invalidate: [['sandbox-deliveries']],
+    invalidate: [[client.keys.sandboxDeliveries]],
   });
   const ok = delivery.status === 'SUCCESS';
 
@@ -220,9 +224,10 @@ function DeliveryItem({ delivery }: { delivery: WebhookDelivery }) {
 
 function WebhooksPanel() {
   const [page, setPage] = useState(1);
+  const client = useIntegrationClient();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['sandbox-deliveries', { page }],
-    queryFn: () => merchantApi.getSandboxDeliveries({ page }),
+    queryKey: [client.keys.sandboxDeliveries, { page }],
+    queryFn: () => client.api.getSandboxDeliveries({ page }),
     placeholderData: keepPreviousData,
   });
   const deliveries = data?.data ?? [];
@@ -259,10 +264,15 @@ function WebhooksPanel() {
 
 export default function SandboxPage() {
   const [view, setView] = useState('setup');
+  const client = useIntegrationClient();
+  const steps = stepsFor(client);
 
   return (
     <>
-      <PageHeader title="Sandbox" description="Uji integrasi Anda dengan aman sebelum memakai API yang sebenarnya." />
+      <PageHeader
+        title={client.scope === 'mypg' ? 'Sandbox MyPG' : 'Sandbox'}
+        description="Uji integrasi Anda dengan aman sebelum memakai API yang sebenarnya."
+      />
 
       <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-300">
         <FlaskConical className="mt-0.5 size-4 shrink-0" />
@@ -279,7 +289,7 @@ export default function SandboxPage() {
             <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
           </summary>
           <ol className="space-y-2 pt-3 pb-1 text-sm text-muted-foreground">
-            {STEPS.map((step, i) => (
+            {steps.map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {i + 1}

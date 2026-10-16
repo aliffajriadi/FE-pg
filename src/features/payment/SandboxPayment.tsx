@@ -12,10 +12,11 @@ import { ToneBadge } from '@/components/shared/StatusBadge';
 const FINAL = ['PAID', 'FAILED', 'EXPIRED', 'CANCELLED', 'REFUNDED'];
 
 /** Halaman bayar palsu untuk invoice sandbox: tidak ada uang yang berpindah. */
-export default function SandboxPayment({ invoiceCode }: { invoiceCode: string }) {
+export default function SandboxPayment({ invoiceCode, source = 'live' }: { invoiceCode: string; source?: 'live' | 'mypg' }) {
+  const mypg = source === 'mypg';
   const { data: invoice, isLoading, error } = useQuery({
-    queryKey: ['sandbox-invoice', invoiceCode],
-    queryFn: () => paymentApi.getSandboxInvoice(invoiceCode),
+    queryKey: ['sandbox-invoice', source, invoiceCode],
+    queryFn: () => (mypg ? paymentApi.getMypgSandboxInvoice(invoiceCode) : paymentApi.getSandboxInvoice(invoiceCode)),
     select: (res) => res.data,
     refetchInterval: (query) => {
       const status = query.state.data?.data.paymentStatus;
@@ -25,8 +26,9 @@ export default function SandboxPayment({ invoiceCode }: { invoiceCode: string })
   });
 
   const simulate = useApiMutation(
-    (status: 'paid' | 'failed' | 'expired') => paymentApi.simulateSandboxInvoice(invoiceCode, status),
-    { successMessage: 'Simulasi dijalankan, webhook sandbox dikirim', invalidate: [['sandbox-invoice', invoiceCode]] }
+    (status: 'paid' | 'failed' | 'expired') =>
+      mypg ? paymentApi.simulateMypgSandboxInvoice(invoiceCode, status) : paymentApi.simulateSandboxInvoice(invoiceCode, status),
+    { successMessage: 'Simulasi dijalankan, webhook sandbox dikirim', invalidate: [['sandbox-invoice', source, invoiceCode]] }
   );
 
   return (

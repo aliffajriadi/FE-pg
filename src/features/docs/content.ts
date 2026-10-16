@@ -206,3 +206,40 @@ export const PAYMENT_STATUSES: [string, string][] = [
   ['CANCELLED', 'Invoice dibatalkan secara manual via API atau Dashboard'],
   ['REFUNDED', 'Pembayaran sudah di-refund ke pelanggan'],
 ];
+
+/** Teks yang berbeda antara dokumentasi live dan MyPG. Struktur halamannya sama. */
+export interface DocsVariant {
+  title: string;
+  tagline: string;
+  apiPath: string;
+  keyPrefix: string;
+  startSteps: string[];
+  endpoints: Endpoint[];
+  webhookSteps: string[];
+  webhookPayload: string;
+  paymentStatuses: [string, string][];
+  projectsDesc: string;
+  projectsNote: string;
+  sandboxWhere: string;
+  sandboxRows: [string, string, string][];
+}
+
+export const LIVE_DOCS: DocsVariant = {
+  title: 'Dokumentasi API Merchant',
+  tagline: 'Hubungkan bot otomatis Anda ke dashboard dalam hitungan menit.',
+  apiPath: '/api/v1',
+  keyPrefix: 'pk',
+  startSteps: START_STEPS,
+  endpoints: ENDPOINTS,
+  webhookSteps: WEBHOOK_STEPS,
+  webhookPayload: WEBHOOK_PAYLOAD,
+  paymentStatuses: PAYMENT_STATUSES,
+  projectsDesc:
+    'Jika Anda mengelola beberapa aplikasi (misal App Kasir dan Website Toko), buat proyek terpisah untuk masing-masing. Ketika App Kasir membuat invoice dengan API Key-nya, notifikasi hanya dikirim ke webhook App Kasir.',
+  projectsNote: 'API Key atau Webhook yang tidak terikat proyek bersifat global — aktif untuk invoice yang dibuat dari Dashboard.',
+  sandboxWhere: 'Buat API Key sandbox di Dashboard (menu Sandbox).',
+  sandboxRows: [
+    ['Pembayaran', 'QRIS sungguhan', 'Halaman bayar palsu, tidak bisa dibayar'],
+    ['Saldo & penarikan', 'Bertambah saat dibayar', 'Tidak pernah berubah'],
+  ],
+};

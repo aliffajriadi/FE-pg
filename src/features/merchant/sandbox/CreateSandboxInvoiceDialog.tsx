@@ -5,7 +5,7 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
-import { merchantApi } from '@/lib/api/merchant';
+import { useIntegrationClient } from '../settings/integration-client';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useInvoiceLimits } from '@/hooks/use-invoice-limits';
 import { formatCurrency } from '@/lib/utils';
@@ -28,6 +28,7 @@ type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
 export function CreateSandboxInvoiceDialog() {
   const [open, setOpen] = useState(false);
+  const client = useIntegrationClient();
   const limits = useInvoiceLimits();
   const schema = useMemo(() => makeSchema(limits.min, limits.max), [limits.min, limits.max]);
   const form = useForm<FormValues>({
@@ -37,10 +38,10 @@ export function CreateSandboxInvoiceDialog() {
   const { errors } = form.formState;
 
   const mutation = useApiMutation(
-    (data: FormValues) => merchantApi.createSandboxInvoice({ ...data, customerName: data.customerName || undefined }),
+    (data: FormValues) => client.api.createSandboxInvoice({ ...data, customerName: data.customerName || undefined }),
     {
       successMessage: 'Invoice sandbox dibuat',
-      invalidate: [['sandbox-invoices']],
+      invalidate: [[client.keys.sandboxInvoices]],
       onSuccess: () => setOpen(false),
     }
   );

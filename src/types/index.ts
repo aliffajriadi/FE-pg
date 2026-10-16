@@ -65,6 +65,9 @@ export interface Store {
   manualInvoiceEnabled: boolean;
   /** null = ikut default sistem, 0 = tanpa batas. */
   dailyTxLimit?: number | null;
+  /** Akses Panel MyPG (QRIS milik merchant sendiri). */
+  mypgEnabled?: boolean;
+  mypgActiveUntil?: string | null;
   createdAt: string;
 }
 
@@ -256,4 +259,6 @@ export interface PublicInvoice {
   paymentNumber: string | null;
   expiredAt: string | null;
   paidAt: string | null;
+  /** MyPG: tombol "Kembali ke toko" setelah lunas (diatur merchant). */
+  returnUrl?: string | null;
 }

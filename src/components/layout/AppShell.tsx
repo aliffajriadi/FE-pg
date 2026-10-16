@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import {
   Code2,
   UserRound,
   BookOpen,
+  BookMarked,
   LifeBuoy,
   Wallet,
   ClipboardList,
@@ -23,6 +24,10 @@ import {
   Plug,
   QrCode,
   Settings,
+  Download,
+  CreditCard,
+  KeyRound,
+  Smartphone,
   Store,
   Trophy,
   Users,
@@ -54,6 +59,8 @@ import type { UserRole } from '@/types';
 interface NavItem {
   href: string;
   label: string;
+  /** Judul kelompok yang tampil di atas item ini (item pertama tiap kelompok). */
+  group?: string;
   icon: LucideIcon;
   badge?: number;
   /** Buka di tab baru (di luar panel) */
@@ -70,8 +77,12 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/bank-accounts', label: 'Rekening Bank', icon: Landmark },
   { href: '/admin/qris', label: 'Daftar QRIS', icon: QrCode },
   { href: '/admin/integrations', label: 'Integrasi Merchant', icon: Plug },
+  { href: '/admin/mypg', label: 'MyPG Merchant', icon: Smartphone },
+  { href: '/admin/mypg/licenses', label: 'Lisensi MyPG', icon: KeyRound },
+  { href: '/admin/mypg/app', label: 'Aplikasi MyPG', icon: Download },
   { href: '/admin/project-requests', label: 'Pengajuan Proyek', icon: FolderPlus },
   { href: '/admin/settings', label: 'Pengaturan Sistem', icon: Settings },
+  { href: '/admin/guides', label: 'Tata Cara', icon: BookMarked },
   { href: '/admin/logs', label: 'Log Aktivitas', icon: ClipboardList },
   { href: '/admin/webhook-logs', label: 'Log Webhook Merchant', icon: Webhook },
   { href: '/admin/support', label: 'Support Tiket', icon: Headphones },
@@ -85,8 +96,22 @@ const MERCHANT_NAV: NavItem[] = [
   { href: '/dashboard/settings', label: 'Integrasi API', icon: Code2 },
   { href: '/dashboard/sandbox', label: 'Sandbox', icon: FlaskConical },
   { href: '/dashboard/account', label: 'Akun Saya', icon: UserRound },
+  { href: '/dashboard/guides', label: 'Tata Cara', icon: BookMarked },
   { href: '/dashboard/support', label: 'Bantuan / Support', icon: LifeBuoy },
   { href: '/docs', label: 'Dokumentasi API', icon: BookOpen, external: true },
+];
+
+// Panel MyPG: hanya untuk toko dengan akses MyPG, terpisah dari menu live
+const MYPG_NAV: NavItem[] = [
+  { href: '/dashboard/mypg', label: 'Beranda', icon: LayoutDashboard, group: 'MyPG' },
+  { href: '/dashboard/mypg/orders', label: 'Transaksi', icon: FileText },
+  { href: '/dashboard/mypg/devices', label: 'Perangkat & QRIS', icon: Smartphone, group: 'Pengaturan' },
+  { href: '/dashboard/mypg/settings', label: 'Pengaturan MyPG', icon: Settings },
+  { href: '/dashboard/mypg/billing', label: 'Billing & Lisensi', icon: CreditCard },
+  { href: '/dashboard/mypg/integration', label: 'Integrasi API', icon: Code2, group: 'Developer' },
+  { href: '/dashboard/mypg/sandbox', label: 'Sandbox', icon: FlaskConical },
+  { href: '/docs/mypg', label: 'Dokumentasi API', icon: BookOpen, external: true },
+  { href: '/dashboard/mypg/guides', label: 'Tata Cara', icon: BookMarked, group: 'Bantuan' },
 ];
 
 export function AppShell({ role, children }: { role: UserRole; children: React.ReactNode }) {
@@ -121,11 +146,18 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
     staleTime: 5 * 60 * 1000,
   });
 
-  const navItems = (isAdmin ? ADMIN_NAV : MERCHANT_NAV).map((item) =>
+  const hasMypg = !isAdmin && !!me?.store?.mypgEnabled;
+  const inMypg = !isAdmin && pathname.startsWith('/dashboard/mypg');
+  const navItems = (isAdmin ? ADMIN_NAV : inMypg ? MYPG_NAV : MERCHANT_NAV).map((item) =>
     item.href === '/admin/support' ? { ...item, badge: openTickets } : item
   );
-  const rootHref = isAdmin ? '/admin' : '/dashboard';
-  const isActive = (href: string) => (href === rootHref ? pathname === href : pathname.startsWith(href));
+  const rootHref = isAdmin ? '/admin' : inMypg ? '/dashboard/mypg' : '/dashboard';
+  // Item dengan path lebih spesifik menang (mis. /admin/mypg/licenses tidak ikut menyalakan /admin/mypg)
+  const isActive = (href: string) =>
+    href === rootHref
+      ? pathname === href
+      : pathname.startsWith(href) &&
+        !navItems.some((item) => item.href.length > href.length && item.href.startsWith(href) && pathname.startsWith(item.href));
 
   const user = me?.user;
 
@@ -145,30 +177,61 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        <p className="px-3 pt-2 pb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-          {isAdmin ? 'Administrasi' : 'Merchant'}
-        </p>
-        {navItems.map((item) => {
+        {(hasMypg || inMypg) && (
+          <div className="mb-2 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-medium" role="tablist" aria-label="Pilih panel">
+            {[
+              { href: '/dashboard', label: 'Live', icon: Store, active: !inMypg },
+              { href: '/dashboard/mypg', label: 'MyPG', icon: Smartphone, active: inMypg },
+            ].map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                role="tab"
+                aria-selected={tab.active}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  'flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 whitespace-nowrap transition-colors',
+                  tab.active ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <tab.icon className="size-3.5" />
+                {tab.label}
+              </Link>
+            ))}
+          </div>
+        )}
+        {!navItems[0]?.group && (
+          <p className="px-3 pt-2 pb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+            {isAdmin ? 'Administrasi' : 'Merchant'}
+          </p>
+        )}
+        {navItems.map((item, index) => {
           const Icon = item.icon;
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              target={item.external ? '_blank' : undefined}
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive(item.href)
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            <Fragment key={item.href}>
+              {item.group && (
+                <p className={cn('px-3 pb-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase', index === 0 ? 'pt-2' : 'pt-4')}>
+                  {item.group}
+                </p>
               )}
-            >
-              <Icon className="size-4" />
-              <span className="flex-1">{item.label}</span>
-              {!!item.badge && (
-                <span className="rounded-full bg-destructive px-1.5 text-xs font-semibold text-white">{item.badge}</span>
-              )}
-            </Link>
+              <Link
+                href={item.href}
+                target={item.external ? '_blank' : undefined}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  isActive(item.href)
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <Icon className="size-4" />
+                <span className="flex-1">{item.label}</span>
+                {!!item.badge && (
+                  <span className="rounded-full bg-destructive px-1.5 text-xs font-semibold text-white">{item.badge}</span>
+                )}
+              </Link>
+            </Fragment>
           );
         })}
       </nav>
@@ -233,6 +296,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
             <Menu />
           </Button>
           <Logo />
+          {inMypg && <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">MyPG</span>}
           <div className="ml-auto">
             <ThemeToggle />
           </div>

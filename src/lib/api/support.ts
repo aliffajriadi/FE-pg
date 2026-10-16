@@ -41,4 +41,12 @@ export const paymentApi = {
     fetchApi<ApiResponse<PublicInvoice>>(`/payment/sandbox/${encodeURIComponent(invoiceCode)}`),
   simulateSandboxInvoice: (invoiceCode: string, status: 'paid' | 'failed' | 'expired') =>
     fetchApi<ApiResponse<{ paymentStatus: string }>>(`/payment/sandbox/${encodeURIComponent(invoiceCode)}/simulate`, post({ status })),
+
+  // MyPG (QRIS milik merchant)
+  getMypgInvoice: (invoiceCode: string) =>
+    fetchApi<ApiResponse<PublicInvoice>>(`/mypg/pay/${encodeURIComponent(invoiceCode)}`),
+  getMypgSandboxInvoice: (invoiceCode: string) =>
+    fetchApi<ApiResponse<PublicInvoice>>(`/mypg/pay/sandbox/${encodeURIComponent(invoiceCode)}`),
+  simulateMypgSandboxInvoice: (invoiceCode: string, status: 'paid' | 'failed' | 'expired') =>
+    fetchApi<ApiResponse<{ paymentStatus: string }>>(`/mypg/pay/sandbox/${encodeURIComponent(invoiceCode)}/simulate`, post({ status })),
 };
