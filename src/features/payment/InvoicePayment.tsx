@@ -170,9 +170,7 @@ export default function InvoicePayment({ invoiceCode }: { invoiceCode: string })
           <p className="text-sm text-muted-foreground">Terima kasih! Pembayaran Anda telah kami terima.</p>
         )}
 
-        <p className="mt-auto flex items-center gap-1.5 text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5 text-primary" /> Transaksi dilindungi &amp; diproses secara aman
-        </p>
+       
       </div>
     </div>
   );
