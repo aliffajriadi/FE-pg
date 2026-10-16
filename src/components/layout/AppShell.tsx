@@ -257,7 +257,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Keluar dari AkuQRIS?</AlertDialogTitle>
+            <AlertDialogTitle>Keluar dari Autoko?</AlertDialogTitle>
             <AlertDialogDescription>Anda perlu masuk kembali untuk mengakses dashboard.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

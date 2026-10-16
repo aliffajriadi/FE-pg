@@ -33,7 +33,7 @@ const TERMS: [string, string][] = [
 const FAQ: [string, string][] = [
   [
     'Bagaimana cara mendaftar?',
-    'Akun dibuat oleh admin AkuQRIS. Setelah akun aktif dan toko disetujui, Anda bisa langsung memakai dashboard.',
+    'Akun dibuat oleh admin Autoko. Setelah akun aktif dan toko disetujui, Anda bisa langsung memakai dashboard.',
   ],
   [
     'Apakah pelanggan perlu aplikasi khusus?',
@@ -105,7 +105,7 @@ export default function LandingPage() {
     <div className="bg-background">
       <header className="sticky top-0 z-30 border-b bg-background">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-          <Link href="/" aria-label="AkuQRIS">
+          <Link href="/" aria-label="Autoko">
             <Logo />
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
@@ -128,14 +128,14 @@ export default function LandingPage() {
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-16 sm:px-6 md:py-24 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <div className="space-y-6">
             <h1 className="text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-              Dashboard toko bot autostore untuk mengelola penjualan Anda.
+              Dashboard bot otomatis untuk mengelola penjualan toko Anda.
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              Pantau pesanan dari bot, kelola saldo toko, dan ajukan penarikan ke rekening dari satu dashboard.
+              Pantau pesanan dari bot otomatis, kelola saldo toko, dan ajukan penarikan ke rekening dari satu dashboard.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-5')}>
-                Masuk ke Dashboard <ArrowRight />
+                Buka Dashboard Bot Otomatis <ArrowRight />
               </Link>
               <Link href="/docs" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-11 px-5')}>
                 Baca Dokumentasi API
@@ -241,10 +241,10 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 py-14 sm:px-6 md:flex-row md:items-center">
             <div>
               <h2 className="text-2xl font-semibold">Sudah punya akun merchant?</h2>
-              <p className="mt-1 text-white/70">Masuk untuk mengelola toko bot Anda.</p>
+              <p className="mt-1 text-white/70">Masuk untuk mengelola bot otomatis dan toko Anda.</p>
             </div>
             <Link href="/login" className={cn(buttonVariants({ size: 'lg' }), 'h-11 bg-white px-5 text-[#1d3557] hover:bg-white/90')}>
-              Masuk ke Dashboard
+              Buka Dashboard Bot Otomatis
             </Link>
           </div>
         </section>
@@ -257,7 +257,7 @@ export default function LandingPage() {
             <Link href="/login" className="hover:text-foreground">Masuk</Link>
             <Link href="/docs" className="hover:text-foreground">Dokumentasi API</Link>
           </nav>
-          <p>© {new Date().getFullYear()} AkuQRIS</p>
+          <p>© {new Date().getFullYear()} Autoko</p>
         </div>
       </footer>
     </div>

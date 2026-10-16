@@ -48,7 +48,7 @@ const PURPOSE_TEMPLATE = `Platform:
 Produk yang dijual: 
 Perkiraan transaksi per hari: 
 Kegunaan: `;
-const NAME_EXAMPLES = ['Bot Telegram Toko', 'Bot WhatsApp Autostore', 'Website Toko'];
+const NAME_EXAMPLES = ['Bot Telegram Toko', 'Bot WhatsApp Otomatis', 'Website Toko'];
 const PROCESS_STEPS = ['Kirim pengajuan', 'Admin meninjau', 'Dapat 1 API Key & 1 Webhook'];
 
 export function RequestProjectDialog() {

@@ -134,7 +134,7 @@ export default function ApiDocs() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Dokumentasi API Merchant</h1>
-              <p className="mt-1 text-muted-foreground">Hubungkan bot autostore Anda ke dashboard dalam hitungan menit.</p>
+              <p className="mt-1 text-muted-foreground">Hubungkan bot otomatis Anda ke dashboard dalam hitungan menit.</p>
             </div>
             <ThemeToggle />
           </div>

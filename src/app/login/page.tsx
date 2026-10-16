@@ -71,13 +71,13 @@ export default function LoginPage() {
         <Logo inverted size="lg" />
 
         <div className="max-w-sm space-y-4">
-          <h1 className="text-3xl leading-snug font-semibold">Dashboard toko bot autostore Anda.</h1>
+          <h1 className="text-3xl leading-snug font-semibold">Dashboard bot otomatis Anda.</h1>
           <p className="leading-relaxed text-white/70">
-            Kelola pesanan, pantau saldo, dan atur penarikan dana toko bot dari satu tempat.
+            Kelola pesanan, Cek pembelian, Laporan Penjualan dalam 1 dashboard terintegrasi.
           </p>
         </div>
 
-        <p className="text-sm text-white/50">© {new Date().getFullYear()} AkuQRIS</p>
+        <p className="text-sm text-white/50">© {new Date().getFullYear()} Autoko</p>
       </aside>
 
       {/* Form */}
@@ -98,7 +98,7 @@ export default function LoginPage() {
           <LoginForm />
 
           <p className="border-t pt-6 text-sm text-muted-foreground">
-            Belum punya akun atau lupa kata sandi? Hubungi admin AkuQRIS.
+            Belum punya akun atau lupa kata sandi? Hubungi admin Autoko.
           </p>
         </div>
       </main>
