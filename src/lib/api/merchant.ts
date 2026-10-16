@@ -139,7 +139,7 @@ export const merchantApi = {
 
   previewInvoice: (amount: number) =>
     fetchApi<ApiResponse<InvoicePreview>>(`/merchant/invoice-preview${toQuery({ amount })}`),
-  getInvoiceLimits: () => fetchApi<ApiResponse<{ min: number; max: number; manualInvoiceEnabled: boolean }>>('/merchant/invoice-limits'),
+  getInvoiceLimits: () => fetchApi<ApiResponse<{ min: number; max: number; manualInvoiceEnabled: boolean; dailyTxLimit: number; dailyTxUsed: number }>>('/merchant/invoice-limits'),
 
   // Sandbox (uji coba, terpisah dari transaksi & saldo asli)
   getSandboxInvoices: (params: { page?: number; status?: string }) =>

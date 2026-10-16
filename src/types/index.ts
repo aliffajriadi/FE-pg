@@ -63,6 +63,8 @@ export interface Store {
   paymentGateway: string;
   autoWdExcluded: boolean;
   manualInvoiceEnabled: boolean;
+  /** null = ikut default sistem, 0 = tanpa batas. */
+  dailyTxLimit?: number | null;
   createdAt: string;
 }
 

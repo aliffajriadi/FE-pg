@@ -61,6 +61,11 @@ const settingsSchema = z.object({
   manualPaymentMethodValue: z.string(),
   defaultApiKeyLimitValue: requiredNumber(),
   defaultWebhookLimitValue: requiredNumber(),
+  defaultDailyTxLimitValue: z
+    .number({ error: 'Wajib diisi' })
+    .int('Harus bilangan bulat')
+    .min(0, 'Tidak boleh negatif')
+    .max(1_000_000, 'Maksimal 1.000.000'),
   bannerIsActive: z.boolean(),
   bannerValue: z.string(),
   minInvoiceAmountValue: z
@@ -104,6 +109,7 @@ function toFormValues(s: AdminSettings): SettingsForm {
     manualPaymentMethodValue: !manualMethod || manualMethod === 'both' ? 'all' : manualMethod,
     defaultApiKeyLimitValue: Number(s.defaultApiKeyLimit?.value ?? 5),
     defaultWebhookLimitValue: Number(s.defaultWebhookLimit?.value ?? 5),
+    defaultDailyTxLimitValue: Number(s.defaultDailyTxLimit?.value ?? 0),
     bannerIsActive: !!s.banner?.isActive,
     bannerValue: s.banner?.value || '',
     minInvoiceAmountValue: Number(s.minInvoiceAmount?.value ?? 500),
@@ -258,6 +264,26 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           </FormField>
           <FormField label="Default Limit Webhook" htmlFor="default-webhook" error={errors.defaultWebhookLimitValue?.message}>
             <Input id="default-webhook" type="number" min={0} {...form.register('defaultWebhookLimitValue', { valueAsNumber: true })} />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Batas Transaksi per Hari</CardTitle>
+          <CardDescription>
+            Jumlah maksimal transaksi live yang berhasil (sudah dibayar) per merchant dalam sehari (reset 00:00 WIB), berlaku untuk
+            API dan Dashboard. Sandbox tidak dihitung. Bisa diatur khusus per merchant di menu Manajemen Toko.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField
+            label="Default Maks. Transaksi per Hari"
+            htmlFor="default-daily-tx"
+            error={errors.defaultDailyTxLimitValue?.message}
+            hint="Isi 0 untuk tanpa batas. Merchant yang batasnya tidak diatur khusus mengikuti nilai ini."
+          >
+            <Input id="default-daily-tx" type="number" min={0} {...form.register('defaultDailyTxLimitValue', { valueAsNumber: true })} />
           </FormField>
         </CardContent>
       </Card>

@@ -249,6 +249,56 @@ export function HoldHoursDialog({ store }: { store: AdminStore }) {
   );
 }
 
+// ─── Batas transaksi per hari ────────────────────────────────
+const dailyLimitSchema = z.object({
+  // Kosong = ikut default sistem, 0 = tanpa batas
+  limit: z.string().trim().regex(/^\d*$/, 'Harus bilangan bulat >= 0').refine((v) => v.length < 8 && Number(v || 0) <= 1_000_000, 'Maksimal 1.000.000'),
+});
+
+export function DailyLimitDialog({ store }: { store: AdminStore }) {
+  const [open, setOpen] = useState(false);
+  const form = useForm<z.infer<typeof dailyLimitSchema>>({ resolver: zodResolver(dailyLimitSchema) });
+
+  const mutation = useApiMutation(
+    ({ limit }: { limit: string }) => adminApi.updateStoreDailyTxLimit(store.id, limit === '' ? null : Number(limit)),
+    { successMessage: 'Batas transaksi harian disimpan', invalidate: [STORES_KEY], onSuccess: () => setOpen(false) }
+  );
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          form.reset({ limit: store.dailyTxLimit == null ? '' : String(store.dailyTxLimit) });
+          setOpen(true);
+        }}
+      >
+        Batas/Hari
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Batas Transaksi per Hari</DialogTitle>
+            <DialogDescription>{store.name}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+            <FormField
+              label="Maks. Transaksi per Hari"
+              htmlFor="daily-limit"
+              error={form.formState.errors.limit?.message}
+              hint="Kosongkan untuk mengikuti default sistem. Isi 0 untuk tanpa batas. Reset setiap 00:00 WIB."
+            >
+              <Input id="daily-limit" inputMode="numeric" placeholder="Ikuti default" {...form.register('limit')} />
+            </FormField>
+            <DialogActions pending={mutation.isPending} onCancel={() => setOpen(false)} />
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Kelola saldo (penyesuaian manual) ───────────────────────
 const balanceSchema = z.object({
   type: z.enum(['CREDIT', 'DEBIT']),

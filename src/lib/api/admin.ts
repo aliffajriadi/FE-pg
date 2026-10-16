@@ -47,7 +47,59 @@ export interface AdminDashboard {
 }
 
 export type AdminUser = User & { isActive: boolean; apiKeyLimit: number; webhookLimit: number; createdAt: string };
-export type AdminStore = Store & { balance: number; user: User };
+export type AdminStore = Store & {
+  balance: number;
+  user: User;
+  /** Batas efektif per hari (0 = tanpa batas) dan jumlah transaksi hari ini. */
+  effectiveDailyTxLimit: number;
+  dailyTxUsed: number;
+};
+
+export type RankingPeriod = 'today' | '7d' | '30d' | 'all';
+export type RankingSort = 'count' | 'volume' | 'fee' | 'average';
+export interface MerchantRankingRow {
+  rank: number;
+  store: { id: number; name: string; status: string; user: { name: string; email: string } };
+  paidCount: number;
+  totalVolume: number;
+  totalFee: number;
+  averageAmount: number;
+  lastPaidAt: string | null;
+}
+
+export interface TrackedTransaction {
+  id: number;
+  invoiceCode: string;
+  productName: string;
+  amount: number;
+  platformFee: number;
+  totalAmount: number;
+  paymentMethod: string | null;
+  paidAt: string | null;
+  store: { id: number; name: string; user: { email: string } };
+}
+export interface TrackingSummary {
+  count: number;
+  totalVolume: number;
+  totalFee: number;
+  maxAmount: number;
+  maxFee: number;
+}
+
+export type WebhookLogAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'REGENERATE_SECRET';
+export interface WebhookChangeLog {
+  id: number;
+  storeId: number;
+  webhookId: number | null;
+  webhookName: string;
+  action: WebhookLogAction;
+  changes: Record<string, { from: string | boolean | null; to: string | boolean | null }> | null;
+  actorId: number | null;
+  actorName: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  store: { id: number; name: string; user: { name: string; email: string } };
+}
 export type AdminOrder = Order & { store: Store | null };
 export type AdminWithdrawal = Withdrawal & {
   store: Store & { user?: User; balance: number; totalBalance: number };
@@ -144,6 +196,7 @@ export interface AdminSettings {
   manualPaymentMethod: SystemSetting;
   defaultApiKeyLimit: SystemSetting;
   defaultWebhookLimit: SystemSetting;
+  defaultDailyTxLimit: SystemSetting;
   defaultPaymentGateway: SystemSetting;
   defaultManualQris: SystemSetting;
   minInvoiceAmount: SystemSetting;
@@ -214,6 +267,8 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/project-requests/${id}/approve`, json('PATCH', { note })),
   rejectProjectRequest: (id: number, note: string) =>
     fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
+  updateStoreDailyTxLimit: (id: number, dailyTxLimit: number | null) =>
+    fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
   updateStoreManualInvoice: (id: number, enabled: boolean) =>
     fetchApi<Msg>(`/admin/stores/${id}/manual-invoice`, json('PATCH', { enabled })),
   getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),
@@ -258,6 +313,19 @@ export const adminApi = {
   getSettings: () => fetchApi<ApiResponse<AdminSettings>>('/admin/settings'),
   updateSettings: (body: Record<string, unknown>) => fetchApi<Msg>('/admin/settings', json('PATCH', body)),
   backupDatabase: () => fetchBlob('/admin/backup-db'),
+
+  // Tracking transaksi
+  getTransactionTracking: (params: ListParams & { period?: RankingPeriod; sortBy?: 'amount' | 'fee' }) =>
+    fetchApi<PaginatedResponse<TrackedTransaction> & { summary: TrackingSummary }>(
+      `/admin/transaction-tracking${toQuery({ ...params })}`
+    ),
+  // Ringkasan per merchant
+  getMerchantRanking: (params: ListParams & { period?: RankingPeriod; sortBy?: RankingSort }) =>
+    fetchApi<PaginatedResponse<MerchantRankingRow>>(`/admin/merchant-ranking${toQuery({ ...params })}`),
+
+  // Log perubahan webhook live oleh merchant
+  getWebhookLogs: (params: ListParams & { action?: WebhookLogAction }) =>
+    fetchApi<PaginatedResponse<WebhookChangeLog>>(`/admin/webhook-logs${toQuery({ ...params })}`),
 
   // Log aktivitas
   getLogs: (params: { page?: number; limit?: number }) =>

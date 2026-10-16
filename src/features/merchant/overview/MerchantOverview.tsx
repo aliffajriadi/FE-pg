@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { useInvoiceLimits } from '@/hooks/use-invoice-limits';
 import { CreateOrderDialog } from '../orders/CreateOrderDialog';
 
 const salesChartConfig = { totalAmount: { label: 'Penjualan', color: 'var(--chart-5)' } } satisfies ChartConfig;
@@ -35,6 +36,7 @@ function Stat({ label, value, className }: { label: string; value: React.ReactNo
 
 export default function MerchantOverview() {
   const { data: me } = useMe();
+  const { dailyTxLimit, dailyTxUsed } = useInvoiceLimits();
   const { data, isLoading, error } = useQuery({
     queryKey: ['merchant-dashboard'],
     queryFn: merchantApi.getDashboard,
@@ -137,6 +139,25 @@ export default function MerchantOverview() {
                   <p className="text-sm text-muted-foreground">Menunggu Pembayaran</p>
                   <p className="text-xl font-bold text-amber-600">{formatCurrency(data.todayStats.pendingAmount)}</p>
                   <p className="text-xs text-muted-foreground">{data.todayStats.pendingCount} transaksi</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-4 sm:col-span-2">
+                  <p className="text-sm text-muted-foreground">Kuota Transaksi Hari Ini</p>
+                  <p className={`text-xl font-bold ${dailyTxLimit > 0 && dailyTxUsed >= dailyTxLimit ? 'text-destructive' : ''}`}>
+                    {dailyTxUsed.toLocaleString('id-ID')} / {dailyTxLimit > 0 ? dailyTxLimit.toLocaleString('id-ID') : '∞'}
+                  </p>
+                  {dailyTxLimit > 0 && (
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={`h-full rounded-full ${dailyTxUsed >= dailyTxLimit ? 'bg-destructive' : 'bg-primary'}`}
+                        style={{ width: `${Math.min(100, (dailyTxUsed / dailyTxLimit) * 100)}%` }}
+                      />
+                    </div>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {dailyTxLimit > 0
+                      ? 'Transaksi berhasil hari ini. Reset 00:00 WIB.'
+                      : 'Tidak ada batas transaksi harian untuk toko Anda.'}
+                  </p>
                 </div>
               </CardContent>
             </Card>

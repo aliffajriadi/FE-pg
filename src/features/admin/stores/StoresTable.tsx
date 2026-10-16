@@ -14,7 +14,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
-import { BalanceDialog, FeeDialog, HoldHoursDialog } from './StoreDialogs';
+import { BalanceDialog, DailyLimitDialog, FeeDialog, HoldHoursDialog } from './StoreDialogs';
 
 function formatFee(store: AdminStore) {
   return store.feeType === 'FIXED' ? formatCurrency(store.feeValue) : `${store.feeValue}%`;
@@ -67,13 +67,14 @@ export default function StoresTable() {
               <TableHead>Status</TableHead>
               <TableHead>Fee</TableHead>
               <TableHead>Hold</TableHead>
+              <TableHead>Transaksi Hari Ini</TableHead>
               <TableHead>Auto WD</TableHead>
               <TableHead>Invoice Manual</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={8} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
+            <TableState colSpan={9} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
             {stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
@@ -87,6 +88,14 @@ export default function StoresTable() {
                 <TableCell>{formatFee(store)}</TableCell>
                 <TableCell>
                   <ToneBadge tone="warning">{store.balanceHoldHours ?? 48} jam</ToneBadge>
+                </TableCell>
+                <TableCell>
+                  <span className="font-medium">{store.dailyTxUsed}</span>
+                  <span className="text-muted-foreground">
+                    {' / '}
+                    {store.effectiveDailyTxLimit > 0 ? store.effectiveDailyTxLimit : '∞'}
+                    {store.dailyTxLimit == null && store.effectiveDailyTxLimit > 0 && ' (default)'}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <Switch
@@ -110,6 +119,7 @@ export default function StoresTable() {
                     <FeeDialog store={store} mode="fee" />
                     <FeeDialog store={store} mode="wd" />
                     <HoldHoursDialog store={store} />
+                    <DailyLimitDialog store={store} />
                     {store.status === 'PENDING' && (
                       <ConfirmAction
                         title="Setujui toko?"

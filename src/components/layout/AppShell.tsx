@@ -24,7 +24,9 @@ import {
   QrCode,
   Settings,
   Store,
+  Trophy,
   Users,
+  Webhook,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -62,6 +64,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin', label: 'Ikhtisar', icon: LayoutDashboard },
   { href: '/admin/users', label: 'Pengguna', icon: Users },
   { href: '/admin/stores', label: 'Toko / Merchant', icon: Store },
+  { href: '/admin/tracking', label: 'Tracking Transaksi', icon: Trophy },
   { href: '/admin/transactions', label: 'Riwayat Transaksi', icon: FileText },
   { href: '/admin/withdrawals', label: 'Penarikan Saldo', icon: Banknote },
   { href: '/admin/bank-accounts', label: 'Rekening Bank', icon: Landmark },
@@ -70,6 +73,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/project-requests', label: 'Pengajuan Proyek', icon: FolderPlus },
   { href: '/admin/settings', label: 'Pengaturan Sistem', icon: Settings },
   { href: '/admin/logs', label: 'Log Aktivitas', icon: ClipboardList },
+  { href: '/admin/webhook-logs', label: 'Log Webhook Merchant', icon: Webhook },
   { href: '/admin/support', label: 'Support Tiket', icon: Headphones },
 ];
 
