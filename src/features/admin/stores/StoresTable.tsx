@@ -14,7 +14,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { TableState } from '@/components/shared/TableState';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
-import { BalanceDialog, DailyLimitDialog, FeeDialog, HoldHoursDialog } from './StoreDialogs';
+import { GATEWAY_SHORT_LABEL, isManualGateway } from '@/lib/gateway';
+import { BalanceDialog, DailyLimitDialog, FeeDialog, HoldHoursDialog, PaymentGatewayDialog } from './StoreDialogs';
 
 function formatFee(store: AdminStore) {
   return store.feeType === 'FIXED' ? formatCurrency(store.feeValue) : `${store.feeValue}%`;
@@ -31,25 +32,41 @@ export default function StoresTable() {
   });
 
   const options = { invalidate: [['admin-stores']] };
-  const approve = useApiMutation(adminApi.approveStore, { ...options, successMessage: 'Toko disetujui' });
-  const suspend = useApiMutation(adminApi.suspendStore, { ...options, successMessage: 'Toko ditutup sementara' });
-  const activate = useApiMutation(adminApi.activateStore, { ...options, successMessage: 'Toko dibuka kembali' });
-  const toggleAutoWd = useApiMutation(
-    ({ id, excluded }: { id: number; excluded: boolean }) => adminApi.updateStoreAutoWd(id, excluded),
-    { ...options, successMessage: 'Pengaturan auto penarikan disimpan' }
-  );
+  const approve = useApiMutation(adminApi.approveStore, {
+    ...options,
+    successMessage: 'Toko disetujui',
+  });
+  const suspend = useApiMutation(adminApi.suspendStore, {
+    ...options,
+    successMessage: 'Toko ditutup sementara',
+  });
+  const activate = useApiMutation(adminApi.activateStore, {
+    ...options,
+    successMessage: 'Toko dibuka kembali',
+  });
+  const toggleAutoWd = useApiMutation(({ id, excluded }: { id: number; excluded: boolean }) => adminApi.updateStoreAutoWd(id, excluded), {
+    ...options,
+    successMessage: 'Pengaturan auto penarikan disimpan',
+  });
 
   const toggleManualInvoice = useApiMutation(
     ({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreManualInvoice(id, enabled),
-    { ...options, successMessage: 'Pengaturan invoice manual disimpan' }
+    { ...options, successMessage: 'Pengaturan invoice manual disimpan' },
   );
 
-  const toggleMypg = useApiMutation(
-    ({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreMypg(id, enabled),
-    { ...options, successMessage: 'Akses MyPG disimpan' }
-  );
+  const toggleMypg = useApiMutation(({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreMypg(id, enabled), {
+    ...options,
+    successMessage: 'Akses MyPG disimpan',
+  });
 
   const stores = data?.data ?? [];
+
+  const { data: qrisList } = useQuery({
+    queryKey: ['admin-manual-qris'],
+    queryFn: adminApi.getManualQris,
+    select: (res) => res.data,
+  });
+  const qrisName = (id?: string | null) => qrisList?.find((q) => String(q.id) === id)?.name;
 
   return (
     <>
@@ -71,6 +88,7 @@ export default function StoresTable() {
               <TableHead className="text-right">Saldo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Fee</TableHead>
+              <TableHead>Pembayaran</TableHead>
               <TableHead>Hold</TableHead>
               <TableHead>Transaksi Hari Ini</TableHead>
               <TableHead>Auto WD</TableHead>
@@ -80,7 +98,7 @@ export default function StoresTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={10} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
+            <TableState colSpan={11} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
             {stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
@@ -92,6 +110,20 @@ export default function StoresTable() {
                   <StatusBadge status={store.status} />
                 </TableCell>
                 <TableCell>{formatFee(store)}</TableCell>
+                <TableCell>
+                  {store.paymentGateway ? (
+                    <>
+                      <ToneBadge tone="info">{GATEWAY_SHORT_LABEL[store.paymentGateway] ?? store.paymentGateway}</ToneBadge>
+                      {isManualGateway(store.paymentGateway) && (
+                        <p className="mt-0.5 max-w-36 truncate text-xs text-muted-foreground">
+                          {qrisName(store.manualQris) ?? 'QRIS dihapus'}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <ToneBadge tone="neutral">Default</ToneBadge>
+                  )}
+                </TableCell>
                 <TableCell>
                   <ToneBadge tone="warning">{store.balanceHoldHours ?? 48} jam</ToneBadge>
                 </TableCell>
@@ -114,7 +146,12 @@ export default function StoresTable() {
                 <TableCell>
                   <Switch
                     checked={!!store.manualInvoiceEnabled}
-                    onCheckedChange={(checked) => toggleManualInvoice.mutate({ id: store.id, enabled: checked })}
+                    onCheckedChange={(checked) =>
+                      toggleManualInvoice.mutate({
+                        id: store.id,
+                        enabled: checked,
+                      })
+                    }
                     disabled={toggleManualInvoice.isPending}
                     aria-label={`Invoice manual ${store.name}`}
                   />
@@ -130,6 +167,7 @@ export default function StoresTable() {
                 <TableCell>
                   <div className="flex justify-end gap-2">
                     <BalanceDialog store={store} />
+                    <PaymentGatewayDialog store={store} />
                     <FeeDialog store={store} mode="fee" />
                     <FeeDialog store={store} mode="wd" />
                     <HoldHoursDialog store={store} />

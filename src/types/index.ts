@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'MERCHANT';
+export type UserRole = 'ADMIN' | 'MERCHANT' | 'SUBADMIN';
 export type FeeType = 'FIXED' | 'PERCENT';
 export type StoreStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 export type PaymentStatus =
@@ -60,7 +60,10 @@ export interface Store {
   wdExtraFeeType: FeeType | null;
   wdExtraFeeValue: number | null;
   wdMaxAmount: number | null;
-  paymentGateway: string;
+  /** Gateway khusus toko. null = ikut default sistem. */
+  paymentGateway: string | null;
+  /** Id ManualQris (string) bila paymentGateway manual. */
+  manualQris?: string | null;
   autoWdExcluded: boolean;
   manualInvoiceEnabled: boolean;
   /** null = ikut default sistem, 0 = tanpa batas. */

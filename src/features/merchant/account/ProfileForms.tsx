@@ -18,15 +18,22 @@ const profileSchema = z.object({
   email: z.email('Format email tidak valid'),
 });
 
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Password saat ini wajib diisi'),
-  newPassword: z.string().min(6, 'Password baru minimal 6 karakter'),
-});
+const passwordSchema = (minLength: number) =>
+  z.object({
+    currentPassword: z.string().min(1, 'Password saat ini wajib diisi'),
+    newPassword: z.string().min(minLength, `Password baru minimal ${minLength} karakter`),
+  });
 
-function ProfileForm({ name, email }: { name: string; email: string }) {
+/** Endpoint simpan profil & password. Default: merchant; sub admin memakai endpoint-nya sendiri. */
+export interface AccountApi {
+  updateProfile: (body: { name: string; email: string }) => Promise<unknown>;
+  updatePassword: (body: { currentPassword: string; newPassword: string }) => Promise<unknown>;
+}
+
+function ProfileForm({ name, email, api }: { name: string; email: string; api: AccountApi }) {
   const form = useForm<z.infer<typeof profileSchema>>({ resolver: zodResolver(profileSchema), defaultValues: { name, email } });
   const { errors } = form.formState;
-  const mutation = useApiMutation(merchantApi.updateProfile, { successMessage: 'Profil diperbarui', invalidate: [['me']] });
+  const mutation = useApiMutation(api.updateProfile, { successMessage: 'Profil diperbarui', invalidate: [['me']] });
 
   return (
     <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
@@ -62,13 +69,13 @@ function PasswordInput(props: React.ComponentProps<typeof Input>) {
   );
 }
 
-function PasswordForm() {
-  const form = useForm<z.infer<typeof passwordSchema>>({
-    resolver: zodResolver(passwordSchema),
+function PasswordForm({ api, minLength }: { api: AccountApi; minLength: number }) {
+  const form = useForm<z.infer<ReturnType<typeof passwordSchema>>>({
+    resolver: zodResolver(passwordSchema(minLength)),
     defaultValues: { currentPassword: '', newPassword: '' },
   });
   const { errors } = form.formState;
-  const mutation = useApiMutation(merchantApi.updatePassword, { onSuccess: () => form.reset() });
+  const mutation = useApiMutation(api.updatePassword, { onSuccess: () => form.reset() });
 
   return (
     <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
@@ -85,7 +92,7 @@ function PasswordForm() {
   );
 }
 
-export function ProfileCard() {
+export function ProfileCard({ api = merchantApi }: { api?: AccountApi }) {
   const { data: me } = useMe();
 
   return (
@@ -98,23 +105,23 @@ export function ProfileCard() {
       </CardHeader>
       <CardContent>
         {/* key: isi ulang form setelah data profil termuat/berubah */}
-        {me && <ProfileForm key={`${me.user.name}|${me.user.email}`} name={me.user.name} email={me.user.email} />}
+        {me && <ProfileForm key={`${me.user.name}|${me.user.email}`} name={me.user.name} email={me.user.email} api={api} />}
       </CardContent>
     </Card>
   );
 }
 
-export function PasswordCard() {
+export function PasswordCard({ api = merchantApi, minLength = 6 }: { api?: AccountApi; minLength?: number }) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="size-4 text-primary" /> Ubah Password
         </CardTitle>
-        <CardDescription>Gunakan minimal 6 karakter. Jangan bagikan password ke siapa pun.</CardDescription>
+        <CardDescription>Gunakan minimal {minLength} karakter. Jangan bagikan password ke siapa pun.</CardDescription>
       </CardHeader>
       <CardContent>
-        <PasswordForm />
+        <PasswordForm api={api} minLength={minLength} />
       </CardContent>
     </Card>
   );

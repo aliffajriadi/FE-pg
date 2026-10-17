@@ -26,5 +26,5 @@ export function clearSession() {
 }
 
 export function homePathFor(role?: string) {
-  return role === 'ADMIN' ? '/admin' : '/dashboard';
+  return role === 'ADMIN' ? '/admin' : role === 'SUBADMIN' ? '/subadmin' : '/dashboard';
 }

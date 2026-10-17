@@ -47,7 +47,12 @@ export interface AdminDashboard {
   merchantBalance: { totalBalance: number };
 }
 
-export type AdminUser = User & { isActive: boolean; apiKeyLimit: number; webhookLimit: number; createdAt: string };
+export type AdminUser = User & {
+  isActive: boolean;
+  apiKeyLimit: number;
+  webhookLimit: number;
+  createdAt: string;
+};
 export type AdminStore = Store & {
   balance: number;
   user: User;
@@ -96,13 +101,50 @@ export interface MypgLicense {
   createdBy?: { name: string };
 }
 
-export type AdminMypgOrder = MypgOrder & { store: { id: number; name: string } };
+export type AdminMypgOrder = MypgOrder & {
+  store: { id: number; name: string };
+};
 
 export type RankingPeriod = 'today' | '7d' | '30d' | 'all';
+
+export interface QrisStatsValues {
+  totalOrders: number;
+  paidCount: number;
+  pendingCount: number;
+  /** Kedaluwarsa, dibatalkan, atau gagal. */
+  failedCount: number;
+  /** Total uang masuk ke QRIS (invoice dibayar). */
+  volume: number;
+  /** Bagian platform: fee + kode unik. */
+  revenue: number;
+  lastPaidAt: string | null;
+}
+
+export interface QrisStatsItem extends QrisStatsValues {
+  id: number;
+  name: string;
+  provider: 'DANA' | 'SHOPEEPAY' | 'GOPAY' | null;
+  isDefault: boolean;
+  storesCustom: number;
+  storesDefault: number;
+}
+
+export interface QrisStats {
+  period: RankingPeriod;
+  items: QrisStatsItem[];
+  /** Invoice yang QRIS-nya sudah dihapus / tidak dikenali. */
+  unknown: QrisStatsValues | null;
+  totals: QrisStatsValues;
+}
 export type RankingSort = 'count' | 'volume' | 'fee' | 'average';
 export interface MerchantRankingRow {
   rank: number;
-  store: { id: number; name: string; status: string; user: { name: string; email: string } };
+  store: {
+    id: number;
+    name: string;
+    status: string;
+    user: { name: string; email: string };
+  };
   paidCount: number;
   totalVolume: number;
   totalFee: number;
@@ -216,8 +258,17 @@ export interface AdminIntegrationDetail {
   };
   legacyWebhookUrl: string | null;
   legacyWebhookSecret: string | null;
-  projects: { id: number; name: string; isActive: boolean; apiKeys: AdminIntegrationKey[]; webhooks: AdminIntegrationWebhook[] }[];
-  global: { apiKeys: AdminIntegrationKey[]; webhooks: AdminIntegrationWebhook[] };
+  projects: {
+    id: number;
+    name: string;
+    isActive: boolean;
+    apiKeys: AdminIntegrationKey[];
+    webhooks: AdminIntegrationWebhook[];
+  }[];
+  global: {
+    apiKeys: AdminIntegrationKey[];
+    webhooks: AdminIntegrationWebhook[];
+  };
   deliveryStats: { live: DeliveryStats; sandbox: DeliveryStats };
   recentDeliveries: AdminIntegrationDelivery[];
 }
@@ -266,6 +317,44 @@ export interface WdSettingsPayload {
   wdMaxAmount: number | null;
 }
 
+export type ManualGateway = 'DANA_MANUAL' | 'SHOPEEPAY_MANUAL' | 'GOPAY_MANUAL';
+
+export interface AgentKey {
+  id: number;
+  name: string;
+  key: string;
+  isActive: boolean;
+  lastUsedAt: string | null;
+  createdAt: string;
+  manualQris: { id: number; name: string };
+  createdBy: { id: number; name: string } | null;
+}
+
+export interface AgentKeysData {
+  keys: AgentKey[];
+  /** Apikey lama .env masih diterima. */
+  legacyEnabled: boolean;
+  /** Gateway yang apikey lamanya terisi di .env server. */
+  legacyConfigured: Record<ManualGateway, boolean>;
+}
+
+export interface Subadmin {
+  id: number;
+  name: string;
+  email: string;
+  isActive: boolean;
+  createdAt: string;
+  qris: { id: number; name: string }[];
+}
+
+export interface SubadminPayload {
+  name?: string;
+  email?: string;
+  password?: string;
+  qrisIds?: number[];
+  isActive?: boolean;
+}
+
 const json = (method: string, body?: unknown): RequestInit => ({
   method,
   body: body === undefined ? undefined : JSON.stringify(body),
@@ -277,52 +366,47 @@ export const adminApi = {
     fetchApi<ApiResponse<AdminDashboard>>(`/admin/dashboard${toQuery({ ...params })}`),
 
   // Pengguna
-  getUsers: (params: ListParams) =>
-    fetchApi<PaginatedResponse<AdminUser>>(`/admin/users${toQuery({ ...params })}`),
-  createUser: (body: { name: string; email: string; password: string }) =>
-    fetchApi<Msg>('/admin/users', json('POST', body)),
+  getUsers: (params: ListParams) => fetchApi<PaginatedResponse<AdminUser>>(`/admin/users${toQuery({ ...params })}`),
+  createUser: (body: { name: string; email: string; password: string }) => fetchApi<Msg>('/admin/users', json('POST', body)),
   suspendUser: (id: number) => fetchApi<Msg>(`/admin/users/${id}/suspend`, json('PATCH', {})),
   activateUser: (id: number) => fetchApi<Msg>(`/admin/users/${id}/activate`, json('PATCH', {})),
-  changeUserPassword: (id: number, password: string) =>
-    fetchApi<Msg>(`/admin/users/${id}/change-password`, json('PATCH', { password })),
-  updateApiKeyLimit: (id: number, apiKeyLimit: number) =>
-    fetchApi<Msg>(`/admin/users/${id}/api-key-limit`, json('PATCH', { apiKeyLimit })),
+  changeUserPassword: (id: number, password: string) => fetchApi<Msg>(`/admin/users/${id}/change-password`, json('PATCH', { password })),
+  updateApiKeyLimit: (id: number, apiKeyLimit: number) => fetchApi<Msg>(`/admin/users/${id}/api-key-limit`, json('PATCH', { apiKeyLimit })),
   updateWebhookLimit: (id: number, webhookLimit: number) =>
     fetchApi<Msg>(`/admin/users/${id}/webhook-limit`, json('PATCH', { webhookLimit })),
 
   // Toko
-  getStores: (params: ListParams) =>
-    fetchApi<PaginatedResponse<AdminStore>>(`/admin/stores${toQuery({ ...params })}`),
+  getStores: (params: ListParams) => fetchApi<PaginatedResponse<AdminStore>>(`/admin/stores${toQuery({ ...params })}`),
   approveStore: (id: number) => fetchApi<Msg>(`/admin/stores/${id}/approve`, json('PATCH', {})),
   suspendStore: (id: number) => fetchApi<Msg>(`/admin/stores/${id}/suspend`, json('PATCH', {})),
   activateStore: (id: number) => fetchApi<Msg>(`/admin/stores/${id}/activate`, json('PATCH', {})),
-  updateStoreFee: (id: number, body: FeePayload) =>
-    fetchApi<Msg>(`/admin/stores/${id}/fee`, json('PATCH', body)),
-  updateStoreWdSettings: (id: number, body: WdSettingsPayload) =>
-    fetchApi<Msg>(`/admin/stores/${id}/wd-settings`, json('PATCH', body)),
-  updateStoreHoldHours: (id: number, holdHours: number) =>
-    fetchApi<Msg>(`/admin/stores/${id}/hold-hours`, json('PATCH', { holdHours })),
-  updateStoreAutoWd: (id: number, excluded: boolean) =>
-    fetchApi<Msg>(`/admin/stores/${id}/auto-wd`, json('PATCH', { excluded })),
-  getProjectRequests: (status?: string) =>
-    fetchApi<ApiResponse<AdminProjectRequest[]>>(`/admin/project-requests${toQuery({ status })}`),
-  approveProjectRequest: (id: number, note?: string) =>
-    fetchApi<Msg>(`/admin/project-requests/${id}/approve`, json('PATCH', { note })),
-  rejectProjectRequest: (id: number, note: string) =>
-    fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
+  updateStoreFee: (id: number, body: FeePayload) => fetchApi<Msg>(`/admin/stores/${id}/fee`, json('PATCH', body)),
+  updateStoreWdSettings: (id: number, body: WdSettingsPayload) => fetchApi<Msg>(`/admin/stores/${id}/wd-settings`, json('PATCH', body)),
+  updateStorePaymentGateway: (id: number, body: { paymentGateway: string | null; manualQris: string | null }) =>
+    fetchApi<Msg>(`/admin/stores/${id}/payment-gateway`, json('PATCH', body)),
+  updateStoreHoldHours: (id: number, holdHours: number) => fetchApi<Msg>(`/admin/stores/${id}/hold-hours`, json('PATCH', { holdHours })),
+  updateStoreAutoWd: (id: number, excluded: boolean) => fetchApi<Msg>(`/admin/stores/${id}/auto-wd`, json('PATCH', { excluded })),
+  getProjectRequests: (status?: string) => fetchApi<ApiResponse<AdminProjectRequest[]>>(`/admin/project-requests${toQuery({ status })}`),
+  approveProjectRequest: (id: number, note?: string) => fetchApi<Msg>(`/admin/project-requests/${id}/approve`, json('PATCH', { note })),
+  rejectProjectRequest: (id: number, note: string) => fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
   updateStoreDailyTxLimit: (id: number, dailyTxLimit: number | null) =>
     fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
-  updateStoreMypg: (id: number, enabled: boolean) =>
-    fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
+  updateStoreMypg: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
   getMypgMerchants: () => fetchApi<ApiResponse<AdminMypgMerchant[]>>('/admin/mypg/merchants'),
   getMypgAppConfig: () =>
-    fetchApi<ApiResponse<{ config: MypgAppConfig; versions: { code: number; name: string | null; devices: number }[] }>>('/admin/mypg/app-config'),
-  updateMypgAppConfig: (body: Partial<MypgAppConfig>) =>
-    fetchApi<ApiResponse<MypgAppConfig>>('/admin/mypg/app-config', json('PUT', body)),
+    fetchApi<
+      ApiResponse<{
+        config: MypgAppConfig;
+        versions: { code: number; name: string | null; devices: number }[];
+      }>
+    >('/admin/mypg/app-config'),
+  updateMypgAppConfig: (body: Partial<MypgAppConfig>) => fetchApi<ApiResponse<MypgAppConfig>>('/admin/mypg/app-config', json('PUT', body)),
   getMypgLicenses: (params: ListParams & { status?: MypgLicenseStatus }) =>
-    fetchApi<PaginatedResponse<MypgLicense> & { counts: Partial<Record<MypgLicenseStatus, number>> }>(
-      `/admin/mypg/licenses${toQuery({ ...params })}`
-    ),
+    fetchApi<
+      PaginatedResponse<MypgLicense> & {
+        counts: Partial<Record<MypgLicenseStatus, number>>;
+      }
+    >(`/admin/mypg/licenses${toQuery({ ...params })}`),
   generateMypgLicenses: (body: { durationDays: number; count: number; note?: string }) =>
     fetchApi<ApiResponse<MypgLicense[]>>('/admin/mypg/licenses', json('POST', body)),
   revokeMypgLicense: (id: number) => fetchApi<Msg>(`/admin/mypg/licenses/${id}/revoke`, json('POST')),
@@ -337,40 +421,57 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),
 
   // Integrasi API merchant (read-only)
-  getIntegrations: (params: ListParams) =>
-    fetchApi<PaginatedResponse<AdminIntegrationRow>>(`/admin/integrations${toQuery({ ...params })}`),
-  getIntegration: (storeId: number) =>
-    fetchApi<ApiResponse<AdminIntegrationDetail>>(`/admin/integrations/${storeId}`),
+  getIntegrations: (params: ListParams) => fetchApi<PaginatedResponse<AdminIntegrationRow>>(`/admin/integrations${toQuery({ ...params })}`),
+  getIntegration: (storeId: number) => fetchApi<ApiResponse<AdminIntegrationDetail>>(`/admin/integrations/${storeId}`),
 
   // Transaksi
-  getTransactions: (params: ListParams & { storeId?: number; startDate?: string; endDate?: string }) =>
-    fetchApi<PaginatedResponse<AdminOrder>>(`/admin/transactions${toQuery({ ...params })}`),
+  getTransactions: (
+    params: ListParams & {
+      storeId?: number;
+      startDate?: string;
+      endDate?: string;
+    },
+  ) => fetchApi<PaginatedResponse<AdminOrder>>(`/admin/transactions${toQuery({ ...params })}`),
   markTransactionPaid: (id: number) => fetchApi<Msg>(`/admin/transactions/${id}/mark-paid`, json('POST')),
   cancelTransaction: (id: number) => fetchApi<Msg>(`/admin/transactions/${id}/cancel`, json('POST')),
 
   // Penarikan (multipart karena bisa upload foto bukti)
-  getWithdrawals: (params: ListParams) =>
-    fetchApi<PaginatedResponse<AdminWithdrawal>>(`/admin/withdrawals${toQuery({ ...params })}`),
+  getWithdrawals: (params: ListParams) => fetchApi<PaginatedResponse<AdminWithdrawal>>(`/admin/withdrawals${toQuery({ ...params })}`),
   markWithdrawalPaid: (id: number, body: FormData) =>
-    fetchApi<Msg>(`/admin/withdrawals/${id}/mark-paid`, { method: 'POST', body }),
-  rejectWithdrawal: (id: number, body: FormData) =>
-    fetchApi<Msg>(`/admin/withdrawals/${id}/reject`, { method: 'POST', body }),
-  updateWithdrawalStatus: (id: number, body: FormData) =>
-    fetchApi<Msg>(`/admin/withdrawals/${id}/status`, { method: 'POST', body }),
+    fetchApi<Msg>(`/admin/withdrawals/${id}/mark-paid`, {
+      method: 'POST',
+      body,
+    }),
+  rejectWithdrawal: (id: number, body: FormData) => fetchApi<Msg>(`/admin/withdrawals/${id}/reject`, { method: 'POST', body }),
+  updateWithdrawalStatus: (id: number, body: FormData) => fetchApi<Msg>(`/admin/withdrawals/${id}/status`, { method: 'POST', body }),
   runAutoWithdrawals: () => fetchApi<ApiResponse<Record<string, number | boolean>>>('/admin/auto-withdrawals/run', json('POST')),
 
   // Rekening bank
-  getBankAccounts: (params: ListParams) =>
-    fetchApi<PaginatedResponse<AdminBankAccount>>(`/admin/bank-accounts${toQuery({ ...params })}`),
+  getBankAccounts: (params: ListParams) => fetchApi<PaginatedResponse<AdminBankAccount>>(`/admin/bank-accounts${toQuery({ ...params })}`),
   approveBankAccount: (id: number) => fetchApi<Msg>(`/admin/bank-accounts/${id}/approve`, json('PATCH')),
   rejectBankAccount: (id: number) => fetchApi<Msg>(`/admin/bank-accounts/${id}/reject`, json('PATCH')),
   deleteBankAccount: (id: number) => fetchApi<Msg>(`/admin/bank-accounts/${id}`, json('DELETE')),
 
   // QRIS manual
   getManualQris: () => fetchApi<ApiResponse<ManualQris[]>>('/admin/manual-qris'),
-  createManualQris: (body: { name: string; qrisString: string }) =>
-    fetchApi<Msg>('/admin/manual-qris', json('POST', body)),
+  getQrisStats: (period: RankingPeriod) => fetchApi<ApiResponse<QrisStats>>(`/admin/manual-qris/stats${toQuery({ period })}`),
+  createManualQris: (body: { name: string; qrisString: string }) => fetchApi<Msg>('/admin/manual-qris', json('POST', body)),
   deleteManualQris: (id: number) => fetchApi<Msg>(`/admin/manual-qris/${id}`, json('DELETE')),
+
+  // API key HP agent
+  getAgentKeys: () => fetchApi<ApiResponse<AgentKeysData>>('/admin/agent-keys'),
+  createAgentKey: (body: { name: string; manualQrisId: number }) => fetchApi<ApiResponse<AgentKey>>('/admin/agent-keys', json('POST', body)),
+  updateAgentKey: (id: number, body: { name?: string; manualQrisId?: number; isActive?: boolean }) =>
+    fetchApi<ApiResponse<AgentKey>>(`/admin/agent-keys/${id}`, json('PATCH', body)),
+  regenerateAgentKey: (id: number) => fetchApi<ApiResponse<AgentKey>>(`/admin/agent-keys/${id}/regenerate`, json('POST')),
+  deleteAgentKey: (id: number) => fetchApi<Msg>(`/admin/agent-keys/${id}`, json('DELETE')),
+  setLegacyAgentKeys: (enabled: boolean) => fetchApi<Msg>('/admin/agent-keys/legacy', json('PUT', { enabled })),
+
+  // Sub admin
+  getSubadmins: () => fetchApi<ApiResponse<Subadmin[]>>('/admin/subadmins'),
+  createSubadmin: (body: Required<Omit<SubadminPayload, 'isActive'>>) => fetchApi<ApiResponse<Subadmin>>('/admin/subadmins', json('POST', body)),
+  updateSubadmin: (id: number, body: SubadminPayload) => fetchApi<ApiResponse<Subadmin>>(`/admin/subadmins/${id}`, json('PATCH', body)),
+  deleteSubadmin: (id: number) => fetchApi<Msg>(`/admin/subadmins/${id}`, json('DELETE')),
 
   // Pengaturan sistem
   getSettings: () => fetchApi<ApiResponse<AdminSettings>>('/admin/settings'),
@@ -379,9 +480,7 @@ export const adminApi = {
 
   // Tracking transaksi
   getTransactionTracking: (params: ListParams & { period?: RankingPeriod; sortBy?: 'amount' | 'fee' }) =>
-    fetchApi<PaginatedResponse<TrackedTransaction> & { summary: TrackingSummary }>(
-      `/admin/transaction-tracking${toQuery({ ...params })}`
-    ),
+    fetchApi<PaginatedResponse<TrackedTransaction> & { summary: TrackingSummary }>(`/admin/transaction-tracking${toQuery({ ...params })}`),
   // Ringkasan per merchant
   getMerchantRanking: (params: ListParams & { period?: RankingPeriod; sortBy?: RankingSort }) =>
     fetchApi<PaginatedResponse<MerchantRankingRow>>(`/admin/merchant-ranking${toQuery({ ...params })}`),

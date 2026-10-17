@@ -22,13 +22,7 @@ import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { TIER_STYLE, TierBadge } from '@/components/shared/TierBadge';
 import type { TierColor } from '@/lib/api/merchant';
-
-const GATEWAY_OPTIONS = [
-  { value: 'PAKASIR', label: 'Pakasir (QRIS via Pakasir SDK)' },
-  { value: 'DANA_MANUAL', label: 'DANA Manual (lacak via notifikasi HP)' },
-  { value: 'SHOPEEPAY_MANUAL', label: 'ShopeePay Manual (lacak via notifikasi HP)' },
-  { value: 'GOPAY_MANUAL', label: 'GoPay Manual (lacak via notifikasi HP)' },
-];
+import { GATEWAY_OPTIONS } from '@/lib/gateway';
 
 const NOTIF_OPTIONS = [
   { value: 'wa', label: 'WhatsApp' },
@@ -87,7 +81,7 @@ const settingsSchema = z.object({
           name: z.string().trim().min(1, 'Nama wajib diisi'),
           min: z.number({ error: 'Wajib diisi' }).int('Harus bilangan bulat').min(0, 'Tidak boleh negatif'),
           color: z.enum(['bronze', 'silver', 'gold', 'platinum', 'diamond']),
-        })
+        }),
       )
       .min(1, 'Minimal 1 level')
       .max(10, 'Maksimal 10 level'),
@@ -115,12 +109,18 @@ function toFormValues(s: AdminSettings): SettingsForm {
     minInvoiceAmountValue: Number(s.minInvoiceAmount?.value ?? 500),
     autoWdEnabledValue: s.autoWdEnabled?.value === 'true',
     autoWdMaxHoursValue: Number(s.autoWdMaxHours?.value ?? 72),
-    merchantTiersValue: s.merchantTiers ?? { basis: 'COUNT', tiers: [{ name: 'Bronze', min: 0, color: 'bronze' }] },
+    merchantTiersValue: s.merchantTiers ?? {
+      basis: 'COUNT',
+      tiers: [{ name: 'Bronze', min: 0, color: 'bronze' }],
+    },
   };
 }
 
 function SettingsFormView({ settings }: { settings: AdminSettings }) {
-  const form = useForm<SettingsForm>({ resolver: zodResolver(settingsSchema), defaultValues: toFormValues(settings) });
+  const form = useForm<SettingsForm>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: toFormValues(settings),
+  });
   const { errors } = form.formState;
   const [gateway, notifMethod, bannerValue] = useWatch({
     control: form.control,
@@ -133,7 +133,10 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
     invalidate: [['admin-settings']],
   });
 
-  const tierFields = useFieldArray({ control: form.control, name: 'merchantTiersValue.tiers' });
+  const tierFields = useFieldArray({
+    control: form.control,
+    name: 'merchantTiersValue.tiers',
+  });
   const [tierBasis, tierPreview] = useWatch({
     control: form.control,
     name: ['merchantTiersValue.basis', 'merchantTiersValue.tiers'],
@@ -143,14 +146,19 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
     invalidate: [['admin-withdrawals']],
   });
 
-  const qrisOptions = settings.manualQrisList.map((q) => ({ value: String(q.id), label: q.name }));
+  const qrisOptions = settings.manualQrisList.map((q) => ({
+    value: String(q.id),
+    label: q.name,
+  }));
 
   return (
     <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Penyedia Pembayaran Global</CardTitle>
-          <CardDescription>Gateway pembayaran yang dipakai oleh seluruh merchant.</CardDescription>
+          <CardDescription>
+            Gateway default untuk merchant yang belum diatur khusus. Gateway & QRIS per merchant diatur di menu Toko / Merchant.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <FormField label="Gateway Aktif" htmlFor="gateway">
@@ -166,7 +174,7 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
             <FormField
               label="QRIS Global"
               htmlFor="manual-qris"
-              hint="QRIS ini dipakai untuk semua transaksi manual. Tambahkan QRIS di menu Daftar QRIS jika belum ada."
+              hint="Dipakai merchant yang mengikuti default. Tambahkan QRIS di menu QRIS jika belum ada."
             >
               <Controller
                 control={form.control}
@@ -260,10 +268,24 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <FormField label="Default Limit API Key" htmlFor="default-api-key" error={errors.defaultApiKeyLimitValue?.message}>
-            <Input id="default-api-key" type="number" min={0} {...form.register('defaultApiKeyLimitValue', { valueAsNumber: true })} />
+            <Input
+              id="default-api-key"
+              type="number"
+              min={0}
+              {...form.register('defaultApiKeyLimitValue', {
+                valueAsNumber: true,
+              })}
+            />
           </FormField>
           <FormField label="Default Limit Webhook" htmlFor="default-webhook" error={errors.defaultWebhookLimitValue?.message}>
-            <Input id="default-webhook" type="number" min={0} {...form.register('defaultWebhookLimitValue', { valueAsNumber: true })} />
+            <Input
+              id="default-webhook"
+              type="number"
+              min={0}
+              {...form.register('defaultWebhookLimitValue', {
+                valueAsNumber: true,
+              })}
+            />
           </FormField>
         </CardContent>
       </Card>
@@ -272,8 +294,8 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
         <CardHeader>
           <CardTitle>Batas Transaksi per Hari</CardTitle>
           <CardDescription>
-            Jumlah maksimal transaksi live yang berhasil (sudah dibayar) per merchant dalam sehari (reset 00:00 WIB), berlaku untuk
-            API dan Dashboard. Sandbox tidak dihitung. Bisa diatur khusus per merchant di menu Manajemen Toko.
+            Jumlah maksimal transaksi live yang berhasil (sudah dibayar) per merchant dalam sehari (reset 00:00 WIB), berlaku untuk API dan
+            Dashboard. Sandbox tidak dihitung. Bisa diatur khusus per merchant di menu Manajemen Toko.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,7 +305,14 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
             error={errors.defaultDailyTxLimitValue?.message}
             hint="Isi 0 untuk tanpa batas. Merchant yang batasnya tidak diatur khusus mengikuti nilai ini."
           >
-            <Input id="default-daily-tx" type="number" min={0} {...form.register('defaultDailyTxLimitValue', { valueAsNumber: true })} />
+            <Input
+              id="default-daily-tx"
+              type="number"
+              min={0}
+              {...form.register('defaultDailyTxLimitValue', {
+                valueAsNumber: true,
+              })}
+            />
           </FormField>
         </CardContent>
       </Card>
@@ -292,8 +321,7 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
         <CardHeader>
           <CardTitle>Batas Nominal Invoice</CardTitle>
           <CardDescription>
-            Minimum nominal yang boleh dibuat merchant per invoice, berlaku untuk API, Dashboard, dan Sandbox. Maksimum tetap
-            Rp20.000.000.
+            Minimum nominal yang boleh dibuat merchant per invoice, berlaku untuk API, Dashboard, dan Sandbox. Maksimum tetap Rp20.000.000.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -308,7 +336,9 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
               type="number"
               min={1}
               max={20000000}
-              {...form.register('minInvoiceAmountValue', { valueAsNumber: true })}
+              {...form.register('minInvoiceAmountValue', {
+                valueAsNumber: true,
+              })}
             />
           </FormField>
         </CardContent>
@@ -318,9 +348,8 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
         <CardHeader>
           <CardTitle>Auto Penarikan</CardTitle>
           <CardDescription>
-            Saldo Utama merchant yang mengendap ditarik otomatis ke rekening yang disetujui. Merchant bisa memilih interval
-            lebih pendek, tapi tidak bisa membatalkan penarikan otomatis. Merchant tertentu bisa dikecualikan lewat kolom Auto WD
-            di menu Manajemen Toko.
+            Saldo Utama merchant yang mengendap ditarik otomatis ke rekening yang disetujui. Merchant bisa memilih interval lebih pendek,
+            tapi tidak bisa membatalkan penarikan otomatis. Merchant tertentu bisa dikecualikan lewat kolom Auto WD di menu Manajemen Toko.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -392,7 +421,11 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
                   className="grid grid-cols-2 gap-2 rounded-lg border p-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,1.5fr)_auto] sm:items-start sm:border-0 sm:p-0"
                 >
                   <div className="col-span-2 space-y-1 sm:col-span-1">
-                    <Input placeholder="Contoh: Gold" aria-label="Nama level" {...form.register(`merchantTiersValue.tiers.${index}.name`)} />
+                    <Input
+                      placeholder="Contoh: Gold"
+                      aria-label="Nama level"
+                      {...form.register(`merchantTiersValue.tiers.${index}.name`)}
+                    />
                     {err?.name && <p className="text-xs text-destructive">{err.name.message}</p>}
                   </div>
                   <div className="space-y-1">
@@ -478,7 +511,9 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
             {/* Konten ditulis oleh admin sendiri, sama seperti frontend lama */}
             <div
               className="min-h-20 rounded-lg border border-dashed p-4 text-sm"
-              dangerouslySetInnerHTML={{ __html: bannerValue || '<span style="opacity:.6">Belum ada konten</span>' }}
+              dangerouslySetInnerHTML={{
+                __html: bannerValue || '<span style="opacity:.6">Belum ada konten</span>',
+              }}
             />
           </div>
         </CardContent>

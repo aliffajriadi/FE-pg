@@ -1,18 +1,13 @@
-"use client";
+'use client';
 
-import { LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { UserAvatar } from "@/components/shared/UserAvatar";
-import { ToneBadge } from "@/components/shared/StatusBadge";
-import type { User } from "@/types";
+import { LogOut } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { UserAvatar } from '@/components/shared/UserAvatar';
+import { ToneBadge } from '@/components/shared/StatusBadge';
+import type { User } from '@/types';
 
-/** Profil admin. Merchant memakai halaman Akun Saya (/dashboard/account). */
+/** Profil admin & sub admin. Merchant memakai halaman Akun Saya (/dashboard/account). */
 export function ProfileDialog({
   open,
   onOpenChange,
@@ -35,10 +30,8 @@ export function ProfileDialog({
           <UserAvatar name={user?.name} className="size-16 text-xl" />
           <div className="min-w-0 space-y-1">
             <p className="truncate text-lg font-semibold">{user?.name}</p>
-            <p className="truncate text-sm text-muted-foreground">
-              {user?.email}
-            </p>
-            <ToneBadge tone="info">Admin</ToneBadge>
+            <p className="truncate text-sm text-muted-foreground">{user?.email}</p>
+            <ToneBadge tone="info">{user?.role === 'SUBADMIN' ? 'Sub Admin' : 'Admin'}</ToneBadge>
           </div>
         </div>
 

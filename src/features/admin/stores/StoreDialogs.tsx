@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import { GATEWAY_OPTIONS, GATEWAY_SHORT_LABEL, isManualGateway } from '@/lib/gateway';
 import type { FeeType } from '@/types';
 
 const STORES_KEY = ['admin-stores'];
@@ -71,7 +72,10 @@ function feeDefaults(store: AdminStore, mode: 'fee' | 'wd'): FeeForm {
 
 export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'wd' }) {
   const [open, setOpen] = useState(false);
-  const form = useForm<FeeForm>({ resolver: zodResolver(feeSchema), defaultValues: feeDefaults(store, mode) });
+  const form = useForm<FeeForm>({
+    resolver: zodResolver(feeSchema),
+    defaultValues: feeDefaults(store, mode),
+  });
   const { errors } = form.formState;
   const isWd = mode === 'wd';
 
@@ -102,7 +106,7 @@ export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'w
       successMessage: isWd ? 'Pengaturan penarikan disimpan' : 'Fee toko disimpan',
       invalidate: [STORES_KEY],
       onSuccess: () => setOpen(false),
-    }
+    },
   );
 
   const typeSelect = (name: 'type' | 'extraType', id: string) => (
@@ -159,7 +163,9 @@ export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'w
                   type="number"
                   min={0}
                   placeholder="Kosongkan jika tidak ada extra fee"
-                  {...form.register('threshold', { setValueAs: toOptionalNumber })}
+                  {...form.register('threshold', {
+                    setValueAs: toOptionalNumber,
+                  })}
                 />
               </FormField>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -173,7 +179,9 @@ export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'w
                     min={0}
                     step="any"
                     placeholder="0"
-                    {...form.register('extraValue', { setValueAs: toOptionalNumber })}
+                    {...form.register('extraValue', {
+                      setValueAs: toOptionalNumber,
+                    })}
                   />
                 </FormField>
               </div>
@@ -188,7 +196,9 @@ export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'w
                     type="number"
                     min={0}
                     placeholder="Kosongkan jika tidak ada batasan"
-                    {...form.register('maxAmount', { setValueAs: toOptionalNumber })}
+                    {...form.register('maxAmount', {
+                      setValueAs: toOptionalNumber,
+                    })}
                   />
                 </FormField>
               </section>
@@ -202,17 +212,140 @@ export function FeeDialog({ store, mode }: { store: AdminStore; mode: 'fee' | 'w
   );
 }
 
+// ─── Gateway & QRIS khusus toko ──────────────────────────────
+const FOLLOW_DEFAULT = 'DEFAULT';
+
+export function PaymentGatewayDialog({ store }: { store: AdminStore }) {
+  const [open, setOpen] = useState(false);
+  const [gateway, setGateway] = useState(FOLLOW_DEFAULT);
+  const [qris, setQris] = useState('');
+  const [qrisError, setQrisError] = useState('');
+
+  // Pengaturan sistem memuat gateway default + daftar QRIS sekaligus
+  const settings = useQuery({
+    queryKey: ['admin-settings'],
+    queryFn: adminApi.getSettings,
+    select: (res) => res.data,
+    enabled: open,
+  });
+  const qrisList = settings.data?.manualQrisList ?? [];
+  const qrisName = (id?: string | null) => qrisList.find((q) => String(q.id) === id)?.name;
+
+  const defaultGateway = settings.data?.defaultPaymentGateway?.value || 'PAKASIR';
+  const defaultLabel = settings.data
+    ? `${GATEWAY_SHORT_LABEL[defaultGateway] ?? defaultGateway}${
+        isManualGateway(defaultGateway) ? ` · ${qrisName(settings.data.defaultManualQris?.value) ?? 'QRIS belum dipilih'}` : ''
+      }`
+    : 'memuat...';
+
+  const mutation = useApiMutation(
+    () =>
+      adminApi.updateStorePaymentGateway(store.id, {
+        paymentGateway: gateway === FOLLOW_DEFAULT ? null : gateway,
+        manualQris: isManualGateway(gateway) ? qris : null,
+      }),
+    {
+      successMessage: 'Metode pembayaran toko disimpan',
+      invalidate: [STORES_KEY],
+      onSuccess: () => setOpen(false),
+    },
+  );
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isManualGateway(gateway) && !qris) return setQrisError('Pilih QRIS yang dipakai toko ini');
+    mutation.mutate();
+  };
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setGateway(store.paymentGateway ?? FOLLOW_DEFAULT);
+          setQris(store.manualQris ?? '');
+          setQrisError('');
+          setOpen(true);
+        }}
+      >
+        QRIS
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Metode Pembayaran Toko</DialogTitle>
+            <DialogDescription>{store.name}</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="space-y-4">
+            <FormField
+              label="Gateway"
+              htmlFor="store-gateway"
+              hint="Ikut default: toko memakai gateway & QRIS dari Pengaturan Sistem, dan ikut berubah bila default diganti."
+            >
+              <SimpleSelect
+                id="store-gateway"
+                value={gateway}
+                onValueChange={(v) => {
+                  setGateway(v);
+                  setQrisError('');
+                }}
+                options={[
+                  {
+                    value: FOLLOW_DEFAULT,
+                    label: `Ikut default sistem (${defaultLabel})`,
+                  },
+                  ...GATEWAY_OPTIONS,
+                ]}
+              />
+            </FormField>
+            {isManualGateway(gateway) && (
+              <FormField
+                label="QRIS *"
+                htmlFor="store-qris"
+                error={qrisError}
+                hint={qrisList.length ? 'Invoice baru toko ini memakai QRIS ini.' : 'Belum ada QRIS. Tambahkan dulu di menu QRIS.'}
+              >
+                <SimpleSelect
+                  id="store-qris"
+                  value={qris}
+                  onValueChange={(v) => {
+                    setQris(v);
+                    setQrisError('');
+                  }}
+                  options={qrisList.map((q) => ({
+                    value: String(q.id),
+                    label: q.name,
+                  }))}
+                  placeholder="-- Pilih QRIS --"
+                />
+              </FormField>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Perubahan hanya berlaku untuk invoice baru. Invoice yang sedang menunggu tetap memakai QRIS lamanya.
+            </p>
+            <DialogActions pending={mutation.isPending} onCancel={() => setOpen(false)} />
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ─── Durasi hold saldo ───────────────────────────────────────
 const holdSchema = z.object({ holdHours: requiredNumber() });
 
 export function HoldHoursDialog({ store }: { store: AdminStore }) {
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof holdSchema>>({ resolver: zodResolver(holdSchema) });
+  const form = useForm<z.infer<typeof holdSchema>>({
+    resolver: zodResolver(holdSchema),
+  });
 
-  const mutation = useApiMutation(
-    ({ holdHours }: { holdHours: number }) => adminApi.updateStoreHoldHours(store.id, holdHours),
-    { successMessage: 'Durasi hold saldo disimpan', invalidate: [STORES_KEY], onSuccess: () => setOpen(false) }
-  );
+  const mutation = useApiMutation(({ holdHours }: { holdHours: number }) => adminApi.updateStoreHoldHours(store.id, holdHours), {
+    successMessage: 'Durasi hold saldo disimpan',
+    invalidate: [STORES_KEY],
+    onSuccess: () => setOpen(false),
+  });
 
   return (
     <>
@@ -252,16 +385,26 @@ export function HoldHoursDialog({ store }: { store: AdminStore }) {
 // ─── Batas transaksi per hari ────────────────────────────────
 const dailyLimitSchema = z.object({
   // Kosong = ikut default sistem, 0 = tanpa batas
-  limit: z.string().trim().regex(/^\d*$/, 'Harus bilangan bulat >= 0').refine((v) => v.length < 8 && Number(v || 0) <= 1_000_000, 'Maksimal 1.000.000'),
+  limit: z
+    .string()
+    .trim()
+    .regex(/^\d*$/, 'Harus bilangan bulat >= 0')
+    .refine((v) => v.length < 8 && Number(v || 0) <= 1_000_000, 'Maksimal 1.000.000'),
 });
 
 export function DailyLimitDialog({ store }: { store: AdminStore }) {
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof dailyLimitSchema>>({ resolver: zodResolver(dailyLimitSchema) });
+  const form = useForm<z.infer<typeof dailyLimitSchema>>({
+    resolver: zodResolver(dailyLimitSchema),
+  });
 
   const mutation = useApiMutation(
     ({ limit }: { limit: string }) => adminApi.updateStoreDailyTxLimit(store.id, limit === '' ? null : Number(limit)),
-    { successMessage: 'Batas transaksi harian disimpan', invalidate: [STORES_KEY], onSuccess: () => setOpen(false) }
+    {
+      successMessage: 'Batas transaksi harian disimpan',
+      invalidate: [STORES_KEY],
+      onSuccess: () => setOpen(false),
+    },
   );
 
   return (
@@ -270,7 +413,9 @@ export function DailyLimitDialog({ store }: { store: AdminStore }) {
         variant="outline"
         size="sm"
         onClick={() => {
-          form.reset({ limit: store.dailyTxLimit == null ? '' : String(store.dailyTxLimit) });
+          form.reset({
+            limit: store.dailyTxLimit == null ? '' : String(store.dailyTxLimit),
+          });
           setOpen(true);
         }}
       >
@@ -310,7 +455,10 @@ type BalanceForm = z.infer<typeof balanceSchema>;
 export function BalanceDialog({ store }: { store: AdminStore }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<BalanceForm | null>(null);
-  const form = useForm<BalanceForm>({ resolver: zodResolver(balanceSchema), defaultValues: { type: 'CREDIT' } });
+  const form = useForm<BalanceForm>({
+    resolver: zodResolver(balanceSchema),
+    defaultValues: { type: 'CREDIT' },
+  });
 
   const { data: balance } = useQuery({
     queryKey: ['admin-store-balance', store.id],
@@ -395,7 +543,13 @@ export function BalanceDialog({ store }: { store: AdminStore }) {
                 )}
               />
               <FormField label="Nominal (Rp)" htmlFor="adj-amount" error={form.formState.errors.amount?.message}>
-                <Input id="adj-amount" type="number" min={1} placeholder="Contoh: 10000" {...form.register('amount', { valueAsNumber: true })} />
+                <Input
+                  id="adj-amount"
+                  type="number"
+                  min={1}
+                  placeholder="Contoh: 10000"
+                  {...form.register('amount', { valueAsNumber: true })}
+                />
               </FormField>
               <FormField label="Keterangan" htmlFor="adj-desc">
                 <Textarea id="adj-desc" rows={3} placeholder="Alasan penyesuaian saldo..." {...form.register('description')} />

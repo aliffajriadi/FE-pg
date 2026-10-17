@@ -14,5 +14,5 @@ export const authApi = {
       body: JSON.stringify(payload),
     }),
 
-  getMe: () => fetchApi<ApiResponse<{ user: User; store: Store | null }>>('/auth/me'),
+  getMe: () => fetchApi<ApiResponse<{ user: User; store: Store | null; qris?: { id: number; name: string }[] }>>('/auth/me'),
 };
