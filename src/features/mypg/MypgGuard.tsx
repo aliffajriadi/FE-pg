@@ -10,10 +10,13 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { IntegrationClientProvider } from '@/features/merchant/settings/integration-client';
 
-/** Peringatan di semua halaman MyPG bila lisensi tidak aktif atau berakhir dalam 7 hari. */
+/** Lisensi dianggap "segera berakhir" (muncul peringatan) bila sisa masa aktifnya sebanyak ini atau kurang. */
+export const LICENSE_WARNING_DAYS = 3;
+
+/** Peringatan di semua halaman MyPG bila lisensi tidak aktif atau berakhir dalam LICENSE_WARNING_DAYS hari. */
 function LicenseBanner() {
   const { data } = useQuery({ queryKey: ['mypg-billing'], queryFn: mypgApi.getBilling, select: (res) => res.data, staleTime: 60_000 });
-  if (!data || (data.active && data.daysLeft > 7)) return null;
+  if (!data || (data.active && data.daysLeft > LICENSE_WARNING_DAYS)) return null;
 
   return (
     <div

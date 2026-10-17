@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { CalendarClock, CheckCircle2, KeyRound, XCircle } from 'lucide-react';
 import { mypgApi } from '@/lib/api/mypg';
+import { LICENSE_WARNING_DAYS } from './MypgGuard';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,7 +30,7 @@ function StatusCard() {
   const { data, isLoading } = useQuery({ queryKey: ['mypg-billing'], queryFn: mypgApi.getBilling, select: (res) => res.data });
   if (isLoading || !data) return <Skeleton className="h-36 rounded-xl" />;
 
-  const expiringSoon = data.active && data.daysLeft <= 7;
+  const expiringSoon = data.active && data.daysLeft <= LICENSE_WARNING_DAYS;
   return (
     <Card className={data.active ? (expiringSoon ? 'border-amber-500/50' : 'border-emerald-500/40') : 'border-destructive/40'}>
       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
