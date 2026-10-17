@@ -355,6 +355,8 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/withdrawals/${id}/mark-paid`, { method: 'POST', body }),
   rejectWithdrawal: (id: number, body: FormData) =>
     fetchApi<Msg>(`/admin/withdrawals/${id}/reject`, { method: 'POST', body }),
+  updateWithdrawalStatus: (id: number, body: FormData) =>
+    fetchApi<Msg>(`/admin/withdrawals/${id}/status`, { method: 'POST', body }),
   runAutoWithdrawals: () => fetchApi<ApiResponse<Record<string, number | boolean>>>('/admin/auto-withdrawals/run', json('POST')),
 
   // Rekening bank
