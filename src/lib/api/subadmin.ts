@@ -32,28 +32,35 @@ export interface SubadminTransactionParams {
   endDate?: string;
 }
 
-export interface SubadminQrisSummary {
-  id: number;
-  name: string;
+export interface SubadminPeriodStats {
+  /** Invoice dibuat dalam rentang. */
+  invoiceCount: number;
+  /** Invoice dibayar dalam rentang (berdasarkan tanggal dibayar). */
   paidCount: number;
   paidVolume: number;
-  todayCount: number;
-  todayVolume: number;
+}
+
+export interface SubadminQrisSummary extends SubadminPeriodStats {
+  id: number;
+  name: string;
+  /** Invoice yang masih menunggu saat ini. */
   pendingCount: number;
   lastPaidAt: string | null;
 }
 
 export interface SubadminDashboard {
-  totals: { paidCount: number; paidVolume: number; todayCount: number; todayVolume: number; pendingCount: number };
+  range: { from: string; to: string };
+  totals: SubadminPeriodStats & { pendingCount: number };
   qris: SubadminQrisSummary[];
-  chartData: { date: string; paidCount: number; totalAmount: number }[];
+  /** Per hari WIB, date = YYYY-MM-DD. */
+  daily: (SubadminPeriodStats & { date: string })[];
   recent: SubadminTransaction[];
 }
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const subadminApi = {
-  getDashboard: () => fetchApi<ApiResponse<SubadminDashboard>>('/subadmin/dashboard'),
+  getDashboard: (range: { from: string; to: string }) => fetchApi<ApiResponse<SubadminDashboard>>(`/subadmin/dashboard${toQuery(range)}`),
   updateProfile: (body: { name: string; email: string }) => fetchApi<ApiResponse<unknown>>('/subadmin/profile', json('PATCH', body)),
   updatePassword: (body: { currentPassword: string; newPassword: string }) =>
     fetchApi<ApiResponse<unknown>>('/subadmin/password', json('PATCH', body)),

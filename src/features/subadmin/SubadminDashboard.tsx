@@ -1,9 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { CalendarCheck, CheckCircle2, ChevronRight, Clock, Wallet } from 'lucide-react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { CheckCircle2, ChevronRight, Clock, Receipt, Wallet } from 'lucide-react';
 import { subadminApi } from '@/lib/api/subadmin';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,20 +14,103 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
+import { SimpleSelect } from '@/components/shared/SimpleSelect';
+import { DateRangeFilter, type DateRange } from '@/components/shared/DateRangeFilter';
 
-const chartConfig = { totalAmount: { label: 'Uang Masuk', color: 'var(--chart-5)' } } satisfies ChartConfig;
+const chartConfig = { paidVolume: { label: 'Uang Masuk', color: 'var(--chart-5)' } } satisfies ChartConfig;
+
+type Period = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: 'today', label: 'Hari ini' },
+  { value: 'yesterday', label: 'Kemarin' },
+  { value: '7d', label: '7 hari terakhir' },
+  { value: '30d', label: '30 hari terakhir' },
+  { value: 'month', label: 'Bulan ini' },
+  { value: 'custom', label: 'Pilih tanggal...' },
+];
+const MAX_RANGE_DAYS = 92;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/** Tanggal WIB (YYYY-MM-DD), mundur `daysAgo` hari dari hari ini. */
+const wibDate = (daysAgo = 0) => new Date(Date.now() + WIB_OFFSET_MS - daysAgo * DAY_MS).toISOString().slice(0, 10);
+
+function presetRange(period: Exclude<Period, 'custom'>): DateRange {
+  switch (period) {
+    case 'today':
+      return { from: wibDate(), to: wibDate() };
+    case 'yesterday':
+      return { from: wibDate(1), to: wibDate(1) };
+    case '7d':
+      return { from: wibDate(6), to: wibDate() };
+    case '30d':
+      return { from: wibDate(29), to: wibDate() };
+    case 'month':
+      return { from: `${wibDate().slice(0, 8)}01`, to: wibDate() };
+  }
+}
+
+const daysBetween = ({ from, to }: DateRange) => Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
+const dayLabel = (date: string, withYear = false) =>
+  new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
+    weekday: withYear ? 'short' : undefined,
+    day: '2-digit',
+    month: 'short',
+    year: withYear ? 'numeric' : undefined,
+  });
+const successRate = (paid: number, total: number) => (total ? `${Math.round((paid / total) * 100)}%` : '-');
 
 export default function SubadminDashboard() {
+  const [period, setPeriod] = useState<Period>('7d');
+  const [custom, setCustom] = useState<DateRange>(() => presetRange('7d'));
+
+  const range = period === 'custom' ? custom : presetRange(period);
+  const rangeError =
+    period !== 'custom'
+      ? null
+      : !custom.from || !custom.to
+        ? 'Pilih tanggal awal dan akhir'
+        : daysBetween(custom) > MAX_RANGE_DAYS
+          ? `Rentang maksimal ${MAX_RANGE_DAYS} hari`
+          : null;
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['subadmin-dashboard'],
-    queryFn: subadminApi.getDashboard,
+    queryKey: ['subadmin-dashboard', range],
+    queryFn: () => subadminApi.getDashboard(range),
     select: (res) => res.data,
+    enabled: !rangeError,
+    placeholderData: keepPreviousData,
     refetchInterval: 60_000,
   });
 
+  const periodLabel = data
+    ? data.range.from === data.range.to
+      ? dayLabel(data.range.from, true)
+      : `${dayLabel(data.range.from)} – ${dayLabel(data.range.to, true)}`
+    : '';
+
   return (
     <>
-      <PageHeader title="Dashboard" description="Ringkasan transaksi dari QRIS yang ditugaskan ke akun Anda." />
+      <PageHeader title="Dashboard" description="Ringkasan transaksi dari QRIS yang ditugaskan ke akun Anda.">
+        <SimpleSelect
+          id="dashboard-period"
+          value={period}
+          onValueChange={(v) => {
+            const next = (v || '7d') as Period;
+            if (next === 'custom') setCustom(range);
+            setPeriod(next);
+          }}
+          options={PERIOD_OPTIONS}
+          className="sm:w-44"
+        />
+      </PageHeader>
+
+      {period === 'custom' && (
+        <div className="flex flex-col gap-1">
+          <DateRangeFilter value={custom} onChange={setCustom} />
+          {rangeError && <p className="text-xs text-destructive">{rangeError}</p>}
+        </div>
+      )}
 
       {isLoading ? (
         <>
@@ -39,7 +123,9 @@ export default function SubadminDashboard() {
         </>
       ) : error || !data ? (
         <Card>
-          <CardContent className="text-destructive">Gagal memuat dashboard: {error?.message}</CardContent>
+          <CardContent className={error ? 'text-destructive' : 'text-muted-foreground'}>
+            {error ? `Gagal memuat dashboard: ${error.message}` : rangeError}
+          </CardContent>
         </Card>
       ) : !data.qris.length ? (
         <Card>
@@ -47,20 +133,24 @@ export default function SubadminDashboard() {
         </Card>
       ) : (
         <>
+          <p className="-mt-2 text-sm text-muted-foreground">
+            Periode: <strong className="text-foreground">{periodLabel}</strong> (WIB)
+          </p>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
-              label="Uang Masuk Hari Ini"
-              icon={CalendarCheck}
-              value={formatCurrency(data.totals.todayVolume)}
-              hint={`${data.totals.todayCount.toLocaleString('id-ID')} transaksi dibayar`}
+              label="Uang Masuk"
+              icon={Wallet}
+              value={formatCurrency(data.totals.paidVolume)}
+              hint="Invoice dibayar dalam periode"
             />
-            <StatCard label="Total Uang Masuk" icon={Wallet} value={formatCurrency(data.totals.paidVolume)} hint="Sepanjang waktu" />
             <StatCard
               label="Transaksi Berhasil"
               icon={CheckCircle2}
               value={data.totals.paidCount.toLocaleString('id-ID')}
-              hint="Sepanjang waktu"
+              hint={`Sukses ${successRate(data.totals.paidCount, data.totals.invoiceCount)} dari invoice periode ini`}
             />
+            <StatCard label="Invoice Dibuat" icon={Receipt} value={data.totals.invoiceCount.toLocaleString('id-ID')} hint="Dalam periode" />
             <StatCard
               label="Menunggu Pembayaran"
               icon={Clock}
@@ -69,44 +159,39 @@ export default function SubadminDashboard() {
             />
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Uang Masuk (7 Hari Terakhir)</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer config={chartConfig} className="h-64 w-full">
-                <AreaChart data={data.chartData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} axisLine={false} />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    width={70}
-                    tickFormatter={(v: number) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(v)}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        formatter={(value) => (
-                          <span>
-                            Uang masuk: <strong>{formatCurrency(Number(value))}</strong>
-                          </span>
-                        )}
-                      />
-                    }
-                  />
-                  <Area
-                    dataKey="totalAmount"
-                    type="monotone"
-                    stroke="var(--color-totalAmount)"
-                    fill="var(--color-totalAmount)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
+          {data.daily.length > 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Uang Masuk per Hari</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={chartConfig} className="h-64 w-full">
+                  <BarChart data={data.daily.map((d) => ({ ...d, label: dayLabel(d.date) }))}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={16} />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      width={70}
+                      tickFormatter={(v: number) => new Intl.NumberFormat('id-ID', { notation: 'compact' }).format(v)}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, _name, item) => (
+                            <span>
+                              Uang masuk: <strong>{formatCurrency(Number(value))}</strong> ({item.payload.paidCount} transaksi)
+                            </span>
+                          )}
+                        />
+                      }
+                    />
+                    <Bar dataKey="paidVolume" fill="var(--color-paidVolume)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <Card className="gap-0 pb-0">
@@ -117,8 +202,8 @@ export default function SubadminDashboard() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>QRIS</TableHead>
-                    <TableHead className="text-right">Hari Ini</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Uang Masuk</TableHead>
+                    <TableHead className="text-right">Berhasil / Invoice</TableHead>
                     <TableHead>Terakhir Dibayar</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -129,13 +214,10 @@ export default function SubadminDashboard() {
                         <p className="font-medium">{q.name}</p>
                         {q.pendingCount > 0 && <p className="text-xs text-amber-600">{q.pendingCount} menunggu</p>}
                       </TableCell>
+                      <TableCell className="text-right font-semibold text-emerald-600">{formatCurrency(q.paidVolume)}</TableCell>
                       <TableCell className="text-right">
-                        <span className="font-semibold text-emerald-600">{formatCurrency(q.todayVolume)}</span>
-                        <p className="text-xs text-muted-foreground">{q.todayCount} transaksi</p>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="font-medium">{formatCurrency(q.paidVolume)}</span>
-                        <p className="text-xs text-muted-foreground">{q.paidCount.toLocaleString('id-ID')} transaksi</p>
+                        {q.paidCount.toLocaleString('id-ID')} / {q.invoiceCount.toLocaleString('id-ID')}
+                        <p className="text-xs text-muted-foreground">sukses {successRate(q.paidCount, q.invoiceCount)}</p>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {q.lastPaidAt ? formatDate(q.lastPaidAt) : '-'}
@@ -147,48 +229,77 @@ export default function SubadminDashboard() {
             </Card>
 
             <Card className="gap-0 pb-0">
-              <CardHeader className="flex flex-row items-center justify-between pb-4">
-                <CardTitle>Transaksi Terbaru</CardTitle>
-                <Link href="/subadmin/transactions" className="flex items-center text-sm text-primary hover:underline">
-                  Lihat semua <ChevronRight className="size-4" />
-                </Link>
+              <CardHeader className="pb-4">
+                <CardTitle>Rincian per Hari</CardTitle>
               </CardHeader>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Dibuat</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {!data.recent.length && (
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
-                        Belum ada transaksi
-                      </TableCell>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead className="text-right">Invoice</TableHead>
+                      <TableHead className="text-right">Dibayar</TableHead>
+                      <TableHead className="text-right">Uang Masuk</TableHead>
                     </TableRow>
-                  )}
-                  {data.recent.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell>
-                        <code className="font-mono text-xs text-muted-foreground">{tx.invoiceCode}</code>
-                        <p className="text-xs text-muted-foreground">
-                          {tx.store.name} · {tx.qris.name ?? '-'}
-                        </p>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(tx.totalAmount)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={tx.paymentStatus} />
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(tx.createdAt)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {[...data.daily].reverse().map((d) => (
+                      <TableRow key={d.date}>
+                        <TableCell className="whitespace-nowrap">{dayLabel(d.date, true)}</TableCell>
+                        <TableCell className="text-right">{d.invoiceCount.toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="text-right">{d.paidCount.toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCurrency(d.paidVolume)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </Card>
           </div>
+
+          <Card className="gap-0 pb-0">
+            <CardHeader className="flex flex-row items-center justify-between pb-4">
+              <CardTitle>Transaksi Terbaru</CardTitle>
+              <Link href="/subadmin/transactions" className="flex items-center text-sm text-primary hover:underline">
+                Lihat semua <ChevronRight className="size-4" />
+              </Link>
+            </CardHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Merchant / QRIS</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dibuat</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!data.recent.length && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+                      Belum ada transaksi
+                    </TableCell>
+                  </TableRow>
+                )}
+                {data.recent.map((tx) => (
+                  <TableRow key={tx.id}>
+                    <TableCell>
+                      <code className="font-mono text-xs text-muted-foreground">{tx.invoiceCode}</code>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {tx.store.name} · {tx.qris.name ?? '-'}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(tx.totalAmount)}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={tx.paymentStatus} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(tx.createdAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
         </>
       )}
     </>
