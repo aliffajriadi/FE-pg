@@ -290,15 +290,14 @@ export function PaymentGatewayDialog({ store }: { store: AdminStore }) {
                   setGateway(v);
                   setQrisError('');
                 }}
-                options={[
-                  {
-                    value: FOLLOW_DEFAULT,
-                    label: `Ikut default sistem (${defaultLabel})`,
-                  },
-                  ...GATEWAY_OPTIONS,
-                ]}
+                options={[{ value: FOLLOW_DEFAULT, label: `Ikut default sistem (${defaultLabel})` }, ...GATEWAY_OPTIONS]}
               />
             </FormField>
+            {gateway === FOLLOW_DEFAULT && (
+              <p className="rounded-lg bg-muted p-3 text-sm">
+                Toko ini memakai <strong>{defaultLabel}</strong> dari Pengaturan Sistem. Tidak perlu memilih QRIS.
+              </p>
+            )}
             {isManualGateway(gateway) && (
               <FormField
                 label="QRIS *"
@@ -313,10 +312,7 @@ export function PaymentGatewayDialog({ store }: { store: AdminStore }) {
                     setQris(v);
                     setQrisError('');
                   }}
-                  options={qrisList.map((q) => ({
-                    value: String(q.id),
-                    label: q.name,
-                  }))}
+                  options={qrisList.map((q) => ({ value: String(q.id), label: q.name }))}
                   placeholder="-- Pilih QRIS --"
                 />
               </FormField>
