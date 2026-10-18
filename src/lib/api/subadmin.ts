@@ -83,12 +83,35 @@ export interface SubadminBalanceQris {
   lastPaidAt: string | null;
 }
 
+/** Rincian uang masuk: hak merchant (nominal invoice) + fee platform + kode unik = yang dibayar pembeli. */
+export interface PaymentBreakdown {
+  merchant: number;
+  fee: number;
+  unique: number;
+}
+
 export interface SubadminBalanceSummary {
   /** Uang yang dipegang: total masuk + ditambah admin - dikurangi admin. */
   balance: number;
-  today: { amount: number; count: number };
-  allTime: { incoming: number; incomingCount: number; added: number; subtracted: number };
+  today: { amount: number; count: number; breakdown: PaymentBreakdown };
+  allTime: { incoming: number; incomingCount: number; breakdown: PaymentBreakdown; added: number; subtracted: number };
   qris: SubadminBalanceQris[];
+}
+
+export interface DailyRecapRow extends PaymentBreakdown {
+  /** Tanggal WIB YYYY-MM-DD; kosong untuk baris total. */
+  date: string;
+  count: number;
+  incoming: number;
+  added: number;
+  subtracted: number;
+}
+
+export interface DailyRecap {
+  range: { from: string; to: string };
+  /** Hari terbaru di atas. */
+  days: DailyRecapRow[];
+  totals: Omit<DailyRecapRow, 'date'>;
 }
 
 export interface BalanceLogParams {
@@ -108,6 +131,7 @@ export const subadminApi = {
   getTransactions: (params: SubadminTransactionParams) =>
     fetchApi<SubadminTransactionsResponse>(`/subadmin/transactions${toQuery({ ...params })}`),
   getBalance: () => fetchApi<ApiResponse<SubadminBalanceSummary>>('/subadmin/balance'),
+  getDailyRecap: (range: { from: string; to: string }) => fetchApi<ApiResponse<DailyRecap>>(`/subadmin/balance/daily${toQuery(range)}`),
   getBalanceLogs: (params: BalanceLogParams) =>
     fetchApi<PaginatedResponse<SubadminBalanceLog>>(`/subadmin/balance/logs${toQuery({ ...params })}`),
 };

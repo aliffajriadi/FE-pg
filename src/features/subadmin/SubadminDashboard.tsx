@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
@@ -14,65 +13,15 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { StatusBadge } from '@/components/shared/StatusBadge';
-import { SimpleSelect } from '@/components/shared/SimpleSelect';
-import { DateRangeFilter, type DateRange } from '@/components/shared/DateRangeFilter';
+import { CustomRangeInput, PeriodSelect, dayLabel, rangeText, usePeriodRange } from './period';
 
 const chartConfig = { paidVolume: { label: 'Uang Masuk', color: 'var(--chart-5)' } } satisfies ChartConfig;
 
-type Period = 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'custom';
-const PERIOD_OPTIONS: { value: Period; label: string }[] = [
-  { value: 'today', label: 'Hari ini' },
-  { value: 'yesterday', label: 'Kemarin' },
-  { value: '7d', label: '7 hari terakhir' },
-  { value: '30d', label: '30 hari terakhir' },
-  { value: 'month', label: 'Bulan ini' },
-  { value: 'custom', label: 'Pilih tanggal...' },
-];
-const MAX_RANGE_DAYS = 92;
-const DAY_MS = 24 * 60 * 60 * 1000;
-const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
-
-/** Tanggal WIB (YYYY-MM-DD), mundur `daysAgo` hari dari hari ini. */
-const wibDate = (daysAgo = 0) => new Date(Date.now() + WIB_OFFSET_MS - daysAgo * DAY_MS).toISOString().slice(0, 10);
-
-function presetRange(period: Exclude<Period, 'custom'>): DateRange {
-  switch (period) {
-    case 'today':
-      return { from: wibDate(), to: wibDate() };
-    case 'yesterday':
-      return { from: wibDate(1), to: wibDate(1) };
-    case '7d':
-      return { from: wibDate(6), to: wibDate() };
-    case '30d':
-      return { from: wibDate(29), to: wibDate() };
-    case 'month':
-      return { from: `${wibDate().slice(0, 8)}01`, to: wibDate() };
-  }
-}
-
-const daysBetween = ({ from, to }: DateRange) => Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1;
-const dayLabel = (date: string, withYear = false) =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('id-ID', {
-    weekday: withYear ? 'short' : undefined,
-    day: '2-digit',
-    month: 'short',
-    year: withYear ? 'numeric' : undefined,
-  });
 const successRate = (paid: number, total: number) => (total ? `${Math.round((paid / total) * 100)}%` : '-');
 
 export default function SubadminDashboard() {
-  const [period, setPeriod] = useState<Period>('7d');
-  const [custom, setCustom] = useState<DateRange>(() => presetRange('7d'));
-
-  const range = period === 'custom' ? custom : presetRange(period);
-  const rangeError =
-    period !== 'custom'
-      ? null
-      : !custom.from || !custom.to
-        ? 'Pilih tanggal awal dan akhir'
-        : daysBetween(custom) > MAX_RANGE_DAYS
-          ? `Rentang maksimal ${MAX_RANGE_DAYS} hari`
-          : null;
+  const periodState = usePeriodRange('7d');
+  const { range, rangeError } = periodState;
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['subadmin-dashboard', range],
@@ -83,34 +32,15 @@ export default function SubadminDashboard() {
     refetchInterval: 60_000,
   });
 
-  const periodLabel = data
-    ? data.range.from === data.range.to
-      ? dayLabel(data.range.from, true)
-      : `${dayLabel(data.range.from)} – ${dayLabel(data.range.to, true)}`
-    : '';
+  const periodLabel = data ? rangeText(data.range) : '';
 
   return (
     <>
       <PageHeader title="Dashboard" description="Ringkasan transaksi dari QRIS yang ditugaskan ke akun Anda.">
-        <SimpleSelect
-          id="dashboard-period"
-          value={period}
-          onValueChange={(v) => {
-            const next = (v || '7d') as Period;
-            if (next === 'custom') setCustom(range);
-            setPeriod(next);
-          }}
-          options={PERIOD_OPTIONS}
-          className="sm:w-44"
-        />
+        <PeriodSelect id="dashboard-period" state={periodState} />
       </PageHeader>
 
-      {period === 'custom' && (
-        <div className="flex flex-col gap-1">
-          <DateRangeFilter value={custom} onChange={setCustom} />
-          {rangeError && <p className="text-xs text-destructive">{rangeError}</p>}
-        </div>
-      )}
+      <CustomRangeInput state={periodState} />
 
       {isLoading ? (
         <>

@@ -22,6 +22,7 @@ import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { Pagination } from '@/components/shared/Pagination';
 import { Textarea } from '@/components/ui/textarea';
 import { BalanceLogTable } from '@/features/subadmin/BalanceLogTable';
+import { BalanceBreakdown, DailyRecapTable } from '@/features/subadmin/BalanceRecap';
 
 const KEYS = ['admin-subadmins'];
 const MIN_PASSWORD = 8;
@@ -200,7 +201,7 @@ function BalanceDialog({ subadmin }: { subadmin: Subadmin }) {
   const mutation = useApiMutation(
     () => adminApi.adjustSubadminBalance(subadmin.id, { type, amount: amount!, description: description.trim() || undefined }),
     {
-      invalidate: [KEYS, balanceKey],
+      invalidate: [KEYS, balanceKey, ['admin-subadmin-daily', subadmin.id]],
       onSuccess: () => {
         setAmount(undefined);
         setDescription('');
@@ -266,6 +267,8 @@ function BalanceDialog({ subadmin }: { subadmin: Subadmin }) {
             </div>
           )}
 
+          {detail && <BalanceBreakdown breakdown={detail.allTime.breakdown} />}
+
           <form onSubmit={submit} className="space-y-3 rounded-lg border p-3">
             <FormField label="Jenis" htmlFor="bal-type">
               <SimpleSelect
@@ -301,6 +304,12 @@ function BalanceDialog({ subadmin }: { subadmin: Subadmin }) {
               </Button>
             </div>
           </form>
+
+          <DailyRecapTable
+            id={`recap-period-${subadmin.id}`}
+            queryKey={['admin-subadmin-daily', subadmin.id]}
+            fetchRecap={(range) => adminApi.getSubadminDailyRecap(subadmin.id, range)}
+          />
 
           <div className="space-y-2">
             <p className="text-sm font-semibold">Riwayat Saldo</p>

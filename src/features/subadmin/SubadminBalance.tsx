@@ -15,6 +15,7 @@ import { Pagination } from '@/components/shared/Pagination';
 import { RefreshButton } from '@/components/shared/RefreshButton';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { BALANCE_LOG_TABS, BalanceLogTable } from './BalanceLogTable';
+import { BalanceBreakdown, DailyRecapTable } from './BalanceRecap';
 
 export default function SubadminBalance() {
   const [type, setType] = useState('ALL');
@@ -76,6 +77,20 @@ export default function SubadminBalance() {
             />
           </div>
 
+          <Card className="gap-3">
+            <CardHeader>
+              <CardTitle>Rincian Total Masuk</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Uang yang dibayar pembeli = hak merchant + fee platform + kode unik. Hari ini:{' '}
+                {formatCurrency(data.today.breakdown.merchant)} merchant · {formatCurrency(data.today.breakdown.fee)} fee ·{' '}
+                {formatCurrency(data.today.breakdown.unique)} kode unik.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <BalanceBreakdown breakdown={data.allTime.breakdown} />
+            </CardContent>
+          </Card>
+
           <Card className="gap-0 pb-0">
             <CardHeader className="pb-4">
               <CardTitle>Per QRIS</CardTitle>
@@ -122,6 +137,8 @@ export default function SubadminBalance() {
           </Card>
         </>
       )}
+
+      <DailyRecapTable id="recap-period" queryKey={['subadmin-balance-daily']} fetchRecap={subadminApi.getDailyRecap} />
 
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Riwayat Saldo</h2>

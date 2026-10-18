@@ -1,7 +1,7 @@
 import { fetchApi, fetchBlob, toQuery } from './client';
 import type { MerchantTier, TierBasis } from './merchant';
 import type { MypgNotification, MypgOrder, MypgProvider } from './mypg';
-import type { BalanceLogParams, SubadminBalanceLog, SubadminBalanceSummary } from './subadmin';
+import type { BalanceLogParams, DailyRecap, SubadminBalanceLog, SubadminBalanceSummary } from './subadmin';
 import type {
   AdminLog,
   ApiResponse,
@@ -491,6 +491,8 @@ export const adminApi = {
   deleteSubadmin: (id: number) => fetchApi<Msg>(`/admin/subadmins/${id}`, json('DELETE')),
   getSubadminBalance: (id: number, params: BalanceLogParams) =>
     fetchApi<ApiResponse<SubadminBalanceDetail> & { pagination: Pagination }>(`/admin/subadmins/${id}/balance${toQuery({ ...params })}`),
+  getSubadminDailyRecap: (id: number, range: { from: string; to: string }) =>
+    fetchApi<ApiResponse<DailyRecap>>(`/admin/subadmins/${id}/balance/daily${toQuery(range)}`),
   adjustSubadminBalance: (id: number, body: SubadminBalanceAdjustment) =>
     fetchApi<Msg>(`/admin/subadmins/${id}/balance`, json('POST', body)),
 
