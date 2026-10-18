@@ -309,6 +309,8 @@ function BalanceDialog({ subadmin }: { subadmin: Subadmin }) {
             id={`recap-period-${subadmin.id}`}
             queryKey={['admin-subadmin-daily', subadmin.id]}
             fetchRecap={(range) => adminApi.getSubadminDailyRecap(subadmin.id, range)}
+            fetchLogs={(params) => adminApi.getSubadminBalanceLogs(subadmin.id, params)}
+            exportName={subadmin.name}
           />
 
           <div className="space-y-2">

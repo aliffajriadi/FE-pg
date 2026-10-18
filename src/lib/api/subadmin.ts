@@ -66,7 +66,7 @@ export interface SubadminBalanceLog {
   amount: number;
   description: string | null;
   occurredAt: string;
-  order: { invoiceCode: string; productName: string; store: { name: string } } | null;
+  order: { invoiceCode: string; productName: string; amount: number; platformFee: number; store: { name: string } } | null;
   createdBy: { name: string } | null;
   qris: { id: number; name: string } | null;
 }
@@ -118,6 +118,9 @@ export interface BalanceLogParams {
   page?: number;
   limit?: number;
   type?: string;
+  /** Tanggal WIB YYYY-MM-DD, opsional. */
+  from?: string;
+  to?: string;
 }
 
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });

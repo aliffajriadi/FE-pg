@@ -491,6 +491,8 @@ export const adminApi = {
   deleteSubadmin: (id: number) => fetchApi<Msg>(`/admin/subadmins/${id}`, json('DELETE')),
   getSubadminBalance: (id: number, params: BalanceLogParams) =>
     fetchApi<ApiResponse<SubadminBalanceDetail> & { pagination: Pagination }>(`/admin/subadmins/${id}/balance${toQuery({ ...params })}`),
+  getSubadminBalanceLogs: (id: number, params: BalanceLogParams) =>
+    fetchApi<PaginatedResponse<SubadminBalanceLog>>(`/admin/subadmins/${id}/balance/logs${toQuery({ ...params })}`),
   getSubadminDailyRecap: (id: number, range: { from: string; to: string }) =>
     fetchApi<ApiResponse<DailyRecap>>(`/admin/subadmins/${id}/balance/daily${toQuery(range)}`),
   adjustSubadminBalance: (id: number, body: SubadminBalanceAdjustment) =>

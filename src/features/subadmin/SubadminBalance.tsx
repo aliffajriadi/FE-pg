@@ -138,7 +138,12 @@ export default function SubadminBalance() {
         </>
       )}
 
-      <DailyRecapTable id="recap-period" queryKey={['subadmin-balance-daily']} fetchRecap={subadminApi.getDailyRecap} />
+      <DailyRecapTable
+        id="recap-period"
+        queryKey={['subadmin-balance-daily']}
+        fetchRecap={subadminApi.getDailyRecap}
+        fetchLogs={subadminApi.getBalanceLogs}
+      />
 
       <div className="space-y-3">
         <h2 className="text-base font-semibold">Riwayat Saldo</h2>

@@ -32,15 +32,31 @@ export async function fetchAllPages<T>(
   return rows;
 }
 
+export interface ExcelSheet<T> {
+  name: string;
+  rows: T[];
+  columns: ExcelColumn<T>[];
+}
+
+const toColumns = <T>(columns: ExcelColumn<T>[]) =>
+  columns.map((c) => ({ width: c.width, header: { value: c.header, fontWeight: 'bold' as const }, cell: (row: T) => c.cell(row) }));
+
 /** Tulis baris ke file .xlsx dan unduh. Library dimuat hanya saat dibutuhkan agar tidak membebani halaman. */
 export async function downloadExcel<T>(rows: T[], columns: ExcelColumn<T>[], fileName: string) {
   const { default: writeExcelFile } = await import('write-excel-file/browser');
-  await writeExcelFile(rows, {
-    stickyRowsCount: 1,
-    columns: columns.map((c) => ({
-      width: c.width,
-      header: { value: c.header, fontWeight: 'bold' },
-      cell: (row: T) => c.cell(row),
-    })),
-  }).toFile(fileName);
+  await writeExcelFile(rows, { stickyRowsCount: 1, columns: toColumns(columns) }).toFile(fileName);
+}
+
+/** Seperti downloadExcel, tapi satu file berisi beberapa sheet. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function downloadExcelSheets(sheets: ExcelSheet<any>[], fileName: string) {
+  const { default: writeExcelFile, getSheetData } = await import('write-excel-file/browser');
+  await writeExcelFile(
+    sheets.map((s) => ({
+      sheet: s.name,
+      data: getSheetData(s.rows, toColumns(s.columns)),
+      columns: s.columns.map((c) => ({ width: c.width })),
+      stickyRowsCount: 1,
+    }))
+  ).toFile(fileName);
 }

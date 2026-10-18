@@ -1,11 +1,13 @@
 'use client';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { ApiResponse } from '@/types';
-import type { DailyRecap, PaymentBreakdown } from '@/lib/api/subadmin';
+import type { ApiResponse, PaginatedResponse } from '@/types';
+import type { DailyRecap, PaymentBreakdown, SubadminBalanceLog } from '@/lib/api/subadmin';
+import { exportSubadminBalance } from '@/lib/export-subadmin-balance';
 import { formatCurrency } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableState } from '@/components/shared/TableState';
+import { ExportButton } from '@/components/shared/ExportButton';
 import { CustomRangeInput, PeriodSelect, dayLabel, rangeText, usePeriodRange } from './period';
 
 /** Rincian uang masuk: siapa pemilik uang yang dipegang sub admin. */
@@ -30,15 +32,23 @@ export function BalanceBreakdown({ breakdown }: { breakdown: PaymentBreakdown })
 
 const money = (value: number) => (value ? formatCurrency(value) : '-');
 
-/** Rekap pendapatan per hari (WIB) dengan pilihan periode. Dipakai halaman Saldo sub admin & dialog saldo super admin. */
+/**
+ * Rekap pendapatan per hari (WIB) dengan pilihan periode + ekspor Excel (rekap harian & detail mutasi).
+ * Dipakai halaman Saldo sub admin & dialog saldo super admin.
+ */
 export function DailyRecapTable({
   id,
   queryKey,
   fetchRecap,
+  fetchLogs,
+  exportName,
 }: {
   id: string;
   queryKey: unknown[];
   fetchRecap: (range: { from: string; to: string }) => Promise<ApiResponse<DailyRecap>>;
+  fetchLogs: (params: { page: number; limit: number; from: string; to: string }) => Promise<PaginatedResponse<SubadminBalanceLog>>;
+  /** Nama sub admin untuk nama file ekspor. */
+  exportName?: string;
 }) {
   const periodState = usePeriodRange('7d');
   const { range, rangeError } = periodState;
@@ -61,7 +71,10 @@ export function DailyRecapTable({
           <h2 className="text-base font-semibold">Rekap Pendapatan Harian</h2>
           {data && <p className="text-xs text-muted-foreground">Periode {rangeText(data.range)} (WIB)</p>}
         </div>
-        <PeriodSelect id={id} state={periodState} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PeriodSelect id={id} state={periodState} />
+          {data && !rangeError && <ExportButton onExport={() => exportSubadminBalance({ recap: data, fetchLogs, name: exportName })} />}
+        </div>
       </div>
       <CustomRangeInput state={periodState} />
 
