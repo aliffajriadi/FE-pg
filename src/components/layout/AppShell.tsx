@@ -107,6 +107,8 @@ const MERCHANT_NAV: NavItem[] = [
 const SUBADMIN_NAV: NavItem[] = [
   { href: '/subadmin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/subadmin/transactions', label: 'Riwayat Transaksi', icon: FileText },
+  { href: '/subadmin/balance', label: 'Saldo', icon: Wallet },
+  { href: '/subadmin/support', label: 'Tiket Support', icon: Headphones },
   { href: '/subadmin/account', label: 'Pengaturan Akun', icon: Settings },
 ];
 
@@ -147,7 +149,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
     queryKey: ['admin-support-open-count'],
     queryFn: adminSupportApi.getOpenCount,
     select: (res) => res.data.count,
-    enabled: isAdmin,
+    enabled: !isMerchant,
     refetchInterval: 60 * 1000,
   });
 
@@ -168,7 +170,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
   if (currentPanel && currentPanel !== lastPanel) setLastPanel(currentPanel);
   const inMypg = isMerchant && (currentPanel ?? lastPanel) === 'mypg';
   const navItems = (isAdmin ? ADMIN_NAV : !isMerchant ? SUBADMIN_NAV : inMypg ? MYPG_NAV : MERCHANT_NAV).map((item) =>
-    item.href === '/admin/support' ? { ...item, badge: openTickets } : item,
+    item.href === '/admin/support' || item.href === '/subadmin/support' ? { ...item, badge: openTickets } : item,
   );
   const rootHref = isAdmin ? '/admin' : !isMerchant ? '/subadmin' : inMypg ? '/dashboard/mypg' : '/dashboard';
   // Item dengan path lebih spesifik menang (mis. /admin/mypg/licenses tidak ikut menyalakan /admin/mypg)

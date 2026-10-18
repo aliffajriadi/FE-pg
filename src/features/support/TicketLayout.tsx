@@ -17,15 +17,7 @@ function BackLink({ href }: { href: string }) {
 }
 
 /** Kondisi loading / gagal untuk halaman detail tiket. Return null jika tiket siap. */
-export function TicketDetailState({
-  backHref,
-  isLoading,
-  error,
-}: {
-  backHref: string;
-  isLoading: boolean;
-  error?: Error | null;
-}) {
+export function TicketDetailState({ backHref, isLoading, error }: { backHref: string; isLoading: boolean; error?: Error | null }) {
   if (isLoading) {
     return (
       <p className="flex items-center gap-2 text-muted-foreground">
@@ -80,6 +72,7 @@ export function TicketLayout({
   backHref,
   viewer,
   merchantName,
+  currentUserId,
   composer,
   sidebar,
 }: {
@@ -87,6 +80,7 @@ export function TicketLayout({
   backHref: string;
   viewer: Viewer;
   merchantName: string;
+  currentUserId?: number;
   composer: React.ReactNode;
   sidebar: React.ReactNode;
 }) {
@@ -111,6 +105,7 @@ export function TicketLayout({
             messages={ticket.messages ?? []}
             viewer={viewer}
             merchantName={merchantName}
+            currentUserId={currentUserId}
             className="max-h-[60vh] min-h-48 px-4 pb-4 sm:px-5"
           />
 

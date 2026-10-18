@@ -158,7 +158,10 @@ export interface SystemSetting {
 
 export interface SupportMessage {
   id: number;
+  senderId: number;
   senderRole: UserRole;
+  /** Nama pengirim balasan tim support; hanya dikirim ke tim support. */
+  senderName?: string | null;
   message: string;
   attachmentUrl: string | null;
   createdAt: string;

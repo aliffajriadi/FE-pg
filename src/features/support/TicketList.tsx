@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import type { SupportTicket } from '@/types';
-import { awaitsReplyFrom, isTicketFinished, relativeTime, type Viewer } from './utils';
+import { awaitsReplyFrom, isTicketFinished, relativeTime, sideOf, type Viewer } from './utils';
 
 const STATUS_DOT: Record<string, string> = {
   OPEN: 'bg-blue-500',
@@ -24,13 +24,10 @@ function TicketRow({ ticket, href, viewer }: { ticket: SupportTicket; href: stri
       href={href}
       className={cn(
         'group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none sm:px-5',
-        isTicketFinished(ticket) && 'opacity-70'
+        isTicketFinished(ticket) && 'opacity-70',
       )}
     >
-      <span
-        className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', STATUS_DOT[ticket.status] ?? 'bg-muted-foreground/40')}
-        aria-hidden
-      />
+      <span className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', STATUS_DOT[ticket.status] ?? 'bg-muted-foreground/40')} aria-hidden />
 
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-3">
@@ -51,7 +48,7 @@ function TicketRow({ ticket, href, viewer }: { ticket: SupportTicket; href: stri
           {last && (
             <>
               {' · '}
-              {last.senderRole === viewer ? 'Anda: ' : ''}
+              {sideOf(last.senderRole) === viewer ? (viewer === 'ADMIN' ? 'Support: ' : 'Anda: ') : ''}
               {last.message}
             </>
           )}
@@ -106,9 +103,7 @@ export function TicketList({
   }
 
   if (error) {
-    return (
-      <Card className="items-center py-10 text-sm text-destructive">Gagal memuat tiket: {error.message}</Card>
-    );
+    return <Card className="items-center py-10 text-sm text-destructive">Gagal memuat tiket: {error.message}</Card>;
   }
 
   if (!tickets.length) {

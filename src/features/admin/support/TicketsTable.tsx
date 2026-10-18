@@ -10,7 +10,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { TicketList } from '@/features/support/TicketList';
 import { TICKET_STATUS_TABS } from '@/features/support/utils';
 
-export default function TicketsTable() {
+/** Dipakai super admin (/admin/support) dan sub admin (/subadmin/support). */
+export default function TicketsTable({ basePath = '/admin/support' }: { basePath?: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -47,7 +48,7 @@ export default function TicketsTable() {
       <TicketList
         tickets={tickets}
         viewer="ADMIN"
-        hrefFor={(t) => `/admin/support/${t.id}`}
+        hrefFor={(t) => `${basePath}/${t.id}`}
         isLoading={isLoading}
         error={error}
         empty={search || status ? 'Tidak ada tiket yang cocok dengan filter.' : 'Belum ada tiket dari merchant.'}

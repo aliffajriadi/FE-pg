@@ -1,6 +1,7 @@
 import { fetchApi, fetchBlob, toQuery } from './client';
 import type { MerchantTier, TierBasis } from './merchant';
 import type { MypgNotification, MypgOrder, MypgProvider } from './mypg';
+import type { BalanceLogParams, SubadminBalanceLog, SubadminBalanceSummary } from './subadmin';
 import type {
   AdminLog,
   ApiResponse,
@@ -11,6 +12,7 @@ import type {
   ManualQris,
   Order,
   PaginatedResponse,
+  Pagination,
   ProjectRequest,
   Store,
   StoreStatus,
@@ -345,6 +347,19 @@ export interface Subadmin {
   isActive: boolean;
   createdAt: string;
   qris: { id: number; name: string }[];
+  /** Uang yang dipegang dari semua QRIS-nya. */
+  balance: number;
+  todayIncome: number;
+}
+
+export interface SubadminBalanceDetail extends SubadminBalanceSummary {
+  logs: SubadminBalanceLog[];
+}
+
+export interface SubadminBalanceAdjustment {
+  type: 'ADD' | 'SUBTRACT';
+  amount: number;
+  description?: string;
 }
 
 export interface SubadminPayload {
@@ -460,7 +475,8 @@ export const adminApi = {
 
   // API key HP agent
   getAgentKeys: () => fetchApi<ApiResponse<AgentKeysData>>('/admin/agent-keys'),
-  createAgentKey: (body: { name: string; manualQrisId: number }) => fetchApi<ApiResponse<AgentKey>>('/admin/agent-keys', json('POST', body)),
+  createAgentKey: (body: { name: string; manualQrisId: number }) =>
+    fetchApi<ApiResponse<AgentKey>>('/admin/agent-keys', json('POST', body)),
   updateAgentKey: (id: number, body: { name?: string; manualQrisId?: number; isActive?: boolean }) =>
     fetchApi<ApiResponse<AgentKey>>(`/admin/agent-keys/${id}`, json('PATCH', body)),
   regenerateAgentKey: (id: number) => fetchApi<ApiResponse<AgentKey>>(`/admin/agent-keys/${id}/regenerate`, json('POST')),
@@ -469,9 +485,14 @@ export const adminApi = {
 
   // Sub admin
   getSubadmins: () => fetchApi<ApiResponse<Subadmin[]>>('/admin/subadmins'),
-  createSubadmin: (body: Required<Omit<SubadminPayload, 'isActive'>>) => fetchApi<ApiResponse<Subadmin>>('/admin/subadmins', json('POST', body)),
+  createSubadmin: (body: Required<Omit<SubadminPayload, 'isActive'>>) =>
+    fetchApi<ApiResponse<Subadmin>>('/admin/subadmins', json('POST', body)),
   updateSubadmin: (id: number, body: SubadminPayload) => fetchApi<ApiResponse<Subadmin>>(`/admin/subadmins/${id}`, json('PATCH', body)),
   deleteSubadmin: (id: number) => fetchApi<Msg>(`/admin/subadmins/${id}`, json('DELETE')),
+  getSubadminBalance: (id: number, params: BalanceLogParams) =>
+    fetchApi<ApiResponse<SubadminBalanceDetail> & { pagination: Pagination }>(`/admin/subadmins/${id}/balance${toQuery({ ...params })}`),
+  adjustSubadminBalance: (id: number, body: SubadminBalanceAdjustment) =>
+    fetchApi<Msg>(`/admin/subadmins/${id}/balance`, json('POST', body)),
 
   // Pengaturan sistem
   getSettings: () => fetchApi<ApiResponse<AdminSettings>>('/admin/settings'),

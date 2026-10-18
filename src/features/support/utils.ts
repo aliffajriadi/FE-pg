@@ -2,7 +2,10 @@ import { format, formatDistanceToNowStrict, isToday, isYesterday } from 'date-fn
 import { id } from 'date-fns/locale';
 import type { SupportTicket, UserRole } from '@/types';
 
+/** Sisi percakapan: ADMIN = tim support (super admin & sub admin), MERCHANT = merchant. */
 export type Viewer = Extract<UserRole, 'ADMIN' | 'MERCHANT'>;
+
+export const sideOf = (role: UserRole): Viewer => (role === 'MERCHANT' ? 'MERCHANT' : 'ADMIN');
 
 export const TICKET_STATUS_TABS = [
   { value: '', label: 'Semua' },
@@ -20,7 +23,7 @@ export function isTicketFinished(ticket: Pick<SupportTicket, 'status'>) {
 export function awaitsReplyFrom(ticket: SupportTicket, viewer: Viewer) {
   // Daftar hanya memuat pesan terakhir; detail memuat semua pesan urut naik. Keduanya: elemen terakhir.
   const last = ticket.messages?.at(-1);
-  return !!last && !isTicketFinished(ticket) && last.senderRole !== viewer;
+  return !!last && !isTicketFinished(ticket) && sideOf(last.senderRole) !== viewer;
 }
 
 export function relativeTime(date: string) {

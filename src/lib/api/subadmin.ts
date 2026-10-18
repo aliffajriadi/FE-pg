@@ -57,6 +57,46 @@ export interface SubadminDashboard {
   recent: SubadminTransaction[];
 }
 
+export type BalanceLogType = 'PAYMENT' | 'ADD' | 'SUBTRACT';
+
+/** Mutasi saldo sub admin: PAYMENT = invoice dibayar di QRIS-nya, ADD/SUBTRACT = penyesuaian super admin. */
+export interface SubadminBalanceLog {
+  id: number;
+  type: BalanceLogType;
+  amount: number;
+  description: string | null;
+  occurredAt: string;
+  order: { invoiceCode: string; productName: string; store: { name: string } } | null;
+  createdBy: { name: string } | null;
+  qris: { id: number; name: string } | null;
+}
+
+export interface SubadminBalanceQris {
+  id: number;
+  name: string;
+  /** false = QRIS lama yang sudah dipindah, uangnya tetap tercatat di sini. */
+  isAssigned: boolean;
+  todayAmount: number;
+  todayCount: number;
+  totalAmount: number;
+  totalCount: number;
+  lastPaidAt: string | null;
+}
+
+export interface SubadminBalanceSummary {
+  /** Uang yang dipegang: total masuk + ditambah admin - dikurangi admin. */
+  balance: number;
+  today: { amount: number; count: number };
+  allTime: { incoming: number; incomingCount: number; added: number; subtracted: number };
+  qris: SubadminBalanceQris[];
+}
+
+export interface BalanceLogParams {
+  page?: number;
+  limit?: number;
+  type?: string;
+}
+
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const subadminApi = {
@@ -67,4 +107,7 @@ export const subadminApi = {
   markPaid: (id: number) => fetchApi<ApiResponse<unknown>>(`/subadmin/transactions/${id}/mark-paid`, { method: 'POST' }),
   getTransactions: (params: SubadminTransactionParams) =>
     fetchApi<SubadminTransactionsResponse>(`/subadmin/transactions${toQuery({ ...params })}`),
+  getBalance: () => fetchApi<ApiResponse<SubadminBalanceSummary>>('/subadmin/balance'),
+  getBalanceLogs: (params: BalanceLogParams) =>
+    fetchApi<PaginatedResponse<SubadminBalanceLog>>(`/subadmin/balance/logs${toQuery({ ...params })}`),
 };
