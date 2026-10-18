@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertCircle, Link2, Loader2, Send } from 'lucide-react';
+import { AlertCircle, Loader2, Send } from 'lucide-react';
+import { PhotoInput } from '@/components/shared/PhotoInput';
+import { MAX_TICKET_IMAGE_MB, validateTicketImage } from '@/features/support/utils';
 import { merchantSupportApi } from '@/lib/api/support';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormField } from '@/components/shared/FormField';
@@ -79,7 +80,6 @@ function reasonsFor(order: Order): Reason[] {
 const reportSchema = z.object({
   reason: z.string().min(1, 'Pilih jenis kendala'),
   note: z.string().trim().min(1, 'Keterangan wajib diisi').max(NOTE_MAX, `Maksimal ${NOTE_MAX} karakter`),
-  attachmentUrl: z.union([z.literal(''), z.url('Link tidak valid, awali dengan https://')]),
 });
 type ReportForm = z.infer<typeof reportSchema>;
 
@@ -108,11 +108,13 @@ function buildMessage(order: Order, reason: Reason, note: string) {
 export function ReportOrderDialog({ order }: { order: Order }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string>();
   const reasons = reasonsFor(order);
 
   const form = useForm<ReportForm>({
     resolver: zodResolver(reportSchema),
-    defaultValues: { reason: '', note: '', attachmentUrl: '' },
+    defaultValues: { reason: '', note: '' },
   });
   const { errors } = form.formState;
   const reasonValue = useWatch({ control: form.control, name: 'reason' });
@@ -126,7 +128,7 @@ export function ReportOrderDialog({ order }: { order: Order }) {
         subject: `Laporan Transaksi ${order.invoiceCode} — ${reason.label}`,
         priority: reason.priority,
         message: buildMessage(order, reason, data.note),
-        attachmentUrl: data.attachmentUrl || undefined,
+        image,
       });
     },
     {
@@ -135,9 +137,10 @@ export function ReportOrderDialog({ order }: { order: Order }) {
       onSuccess: (res) => {
         setOpen(false);
         form.reset();
+        setImage(null);
         router.push(`/dashboard/support/${res.data.id}`);
       },
-    }
+    },
   );
 
   const submit = form.handleSubmit((data) => mutation.mutate(data));
@@ -164,9 +167,7 @@ export function ReportOrderDialog({ order }: { order: Order }) {
             <DialogTitle className="flex items-center gap-2">
               <AlertCircle className="size-4 text-amber-600" /> Laporkan Kendala Transaksi
             </DialogTitle>
-            <DialogDescription>
-              Data transaksi ikut terlampir otomatis. Anda cukup pilih kendala dan ceritakan singkat.
-            </DialogDescription>
+            <DialogDescription>Data transaksi ikut terlampir otomatis. Anda cukup pilih kendala dan ceritakan singkat.</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={submit} className="space-y-5 p-4">
@@ -181,7 +182,9 @@ export function ReportOrderDialog({ order }: { order: Order }) {
               </div>
               <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
                 <dt className="text-muted-foreground">Produk</dt>
-                <dd className="truncate text-right" title={order.productName}>{order.productName}</dd>
+                <dd className="truncate text-right" title={order.productName}>
+                  {order.productName}
+                </dd>
                 <dt className="text-muted-foreground">Pelanggan</dt>
                 <dd className="truncate text-right">{order.customerName || '-'}</dd>
                 <dt className="text-muted-foreground">Dibuat</dt>
@@ -210,9 +213,7 @@ export function ReportOrderDialog({ order }: { order: Order }) {
                           className={cn(
                             'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
                             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                            active
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'bg-background hover:bg-muted'
+                            active ? 'border-primary bg-primary text-primary-foreground' : 'bg-background hover:bg-muted',
                           )}
                         >
                           {r.label}
@@ -242,16 +243,17 @@ export function ReportOrderDialog({ order }: { order: Order }) {
             </FormField>
 
             {/* Lampiran */}
-            <FormField
-              label="Link Bukti (Opsional)"
-              htmlFor="report-url"
-              error={errors.attachmentUrl?.message}
-              hint="Bukti transfer atau screenshot dari Google Drive, Imgur, dan sejenisnya."
-            >
-              <div className="relative">
-                <Link2 className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="report-url" type="url" placeholder="https://..." className="pl-8" {...form.register('attachmentUrl')} />
-              </div>
+            <FormField label="Gambar Bukti (Opsional)" htmlFor="report-image" error={imageError} hint="Bukti transfer atau screenshot.">
+              <PhotoInput
+                id="report-image"
+                file={image}
+                onChange={(file) => {
+                  const invalid = file && validateTicketImage(file);
+                  setImageError(invalid || undefined);
+                  setImage(invalid ? null : file);
+                }}
+                hint={`Klik untuk pilih gambar (maks ${MAX_TICKET_IMAGE_MB}MB)`}
+              />
             </FormField>
 
             <DialogFooter className="-mx-4 -mb-4 mt-0 rounded-b-xl border-t bg-muted/30 p-4">

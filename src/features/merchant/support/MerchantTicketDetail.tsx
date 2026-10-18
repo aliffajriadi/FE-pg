@@ -9,11 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { ReplyForm } from '@/features/support/ReplyForm';
 import { TicketDetailState, TicketInfoCard, TicketLayout, baseInfoRows } from '@/features/support/TicketLayout';
-import { isTicketFinished } from '@/features/support/utils';
+import { imagesLeft, isTicketFinished } from '@/features/support/utils';
 
 export default function MerchantTicketDetail({ ticketId }: { ticketId: number }) {
   const { data: me } = useMe();
-  const { data: ticket, isLoading, error } = useQuery({
+  const {
+    data: ticket,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['merchant-ticket', ticketId],
     queryFn: () => merchantSupportApi.getTicket(ticketId),
     select: (res) => res.data,
@@ -38,14 +42,15 @@ export default function MerchantTicketDetail({ ticketId }: { ticketId: number })
       composer={
         finished ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Lock className="size-4" /> Tiket ini sudah {ticket.status === 'RESOLVED' ? 'diselesaikan' : 'ditutup'}. Buat tiket
-            baru jika masih ada kendala.
+            <Lock className="size-4" /> Tiket ini sudah {ticket.status === 'RESOLVED' ? 'diselesaikan' : 'ditutup'}. Buat tiket baru jika
+            masih ada kendala.
           </p>
         ) : (
           <ReplyForm
             placeholder="Tulis balasan atau informasi tambahan..."
             onReply={(body) => merchantSupportApi.reply(ticket.id, body)}
             invalidate={invalidate}
+            imagesLeft={imagesLeft(ticket, 'MERCHANT')}
           />
         )
       }

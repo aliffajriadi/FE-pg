@@ -3,8 +3,9 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { assetUrl } from '@/lib/api/client';
 import type { SupportMessage } from '@/types';
-import { dayLabel, hostOf, initials, sideOf, timeLabel, type Viewer } from './utils';
+import { dayLabel, hostOf, initials, isTicketImage, sideOf, timeLabel, type Viewer } from './utils';
 
 function Avatar({ name, isAdmin }: { name: string; isAdmin: boolean }) {
   return (
@@ -82,21 +83,39 @@ export function TicketThread({
                     isOwn ? 'rounded-tr-md bg-primary text-primary-foreground' : 'rounded-tl-md bg-muted',
                   )}
                 >
-                  <p className="break-words whitespace-pre-wrap">{msg.message}</p>
-                  {msg.attachmentUrl && (
+                  {msg.message && <p className="break-words whitespace-pre-wrap">{msg.message}</p>}
+                  {isTicketImage(msg.attachmentUrl) ? (
                     <a
-                      href={msg.attachmentUrl}
+                      href={assetUrl(msg.attachmentUrl)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title={msg.attachmentUrl}
-                      className={cn(
-                        'mt-2 flex max-w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium',
-                        isOwn ? 'bg-primary-foreground/15 hover:bg-primary-foreground/25' : 'bg-background hover:bg-background/70',
-                      )}
+                      title="Buka gambar ukuran penuh"
+                      className={cn('block', msg.message && 'mt-2')}
                     >
-                      <Link2 className="size-3.5 shrink-0" />
-                      <span className="truncate">{hostOf(msg.attachmentUrl)}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={assetUrl(msg.attachmentUrl)}
+                        alt="Lampiran gambar"
+                        loading="lazy"
+                        className="max-h-64 w-auto max-w-full rounded-lg bg-background object-contain"
+                      />
                     </a>
+                  ) : (
+                    msg.attachmentUrl && (
+                      <a
+                        href={msg.attachmentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={msg.attachmentUrl}
+                        className={cn(
+                          'mt-2 flex max-w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-medium',
+                          isOwn ? 'bg-primary-foreground/15 hover:bg-primary-foreground/25' : 'bg-background hover:bg-background/70',
+                        )}
+                      >
+                        <Link2 className="size-3.5 shrink-0" />
+                        <span className="truncate">{hostOf(msg.attachmentUrl)}</span>
+                      </a>
+                    )
                   )}
                 </div>
                 <span className="px-1 text-[11px] text-muted-foreground">{timeLabel(msg.createdAt)}</span>

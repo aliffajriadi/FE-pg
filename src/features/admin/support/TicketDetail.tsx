@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ReplyForm } from '@/features/support/ReplyForm';
 import { TicketDetailState, TicketInfoCard, TicketLayout, baseInfoRows } from '@/features/support/TicketLayout';
+import { imagesLeft } from '@/features/support/utils';
 import type { SupportTicket, TicketStatus } from '@/types';
 
 const STATUS_ACTIONS: { value: TicketStatus; label: string; icon: React.ElementType }[] = [
@@ -102,6 +103,7 @@ export default function TicketDetail({ ticketId, basePath = '/admin/support' }: 
             placeholder={`Balas ke ${merchantName}...`}
             onReply={(body) => adminSupportApi.reply(ticket.id, body)}
             invalidate={invalidateKeys(ticket.id)}
+            imagesLeft={imagesLeft(ticket, 'ADMIN')}
           />
         )
       }

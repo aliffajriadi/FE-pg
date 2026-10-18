@@ -15,6 +15,26 @@ export const TICKET_STATUS_TABS = [
   { value: 'CLOSED', label: 'Ditutup' },
 ];
 
+// Lampiran gambar tiket: satu per pesan, maks 1MB, maks 3 gambar per tiket untuk tiap pihak (merchant / tim support)
+export const MAX_TICKET_IMAGES = 3;
+export const MAX_TICKET_IMAGE_MB = 1;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+export const isTicketImage = (url: string | null | undefined) => !!url?.startsWith('/uploads/support/');
+
+/** Pesan error bila gambar tidak boleh dikirim, null bila valid. */
+export function validateTicketImage(file: File) {
+  if (!IMAGE_TYPES.includes(file.type)) return 'Hanya gambar JPG, PNG, WEBP, atau GIF';
+  if (file.size > MAX_TICKET_IMAGE_MB * 1024 * 1024) return `Ukuran gambar maksimal ${MAX_TICKET_IMAGE_MB}MB`;
+  return null;
+}
+
+/** Sisa jatah gambar viewer di tiket ini. */
+export function imagesLeft(ticket: Pick<SupportTicket, 'messages'>, viewer: Viewer) {
+  const used = (ticket.messages ?? []).filter((m) => sideOf(m.senderRole) === viewer && isTicketImage(m.attachmentUrl)).length;
+  return Math.max(0, MAX_TICKET_IMAGES - used);
+}
+
 export function isTicketFinished(ticket: Pick<SupportTicket, 'status'>) {
   return ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
 }

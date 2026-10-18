@@ -19,7 +19,8 @@ import { Pagination } from '@/components/shared/Pagination';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { TicketList } from '@/features/support/TicketList';
-import { TICKET_STATUS_TABS } from '@/features/support/utils';
+import { MAX_TICKET_IMAGE_MB, TICKET_STATUS_TABS, validateTicketImage } from '@/features/support/utils';
+import { PhotoInput } from '@/components/shared/PhotoInput';
 
 const PRIORITY_OPTIONS = [
   { value: 'LOW', label: 'Rendah' },
@@ -32,27 +33,25 @@ const ticketSchema = z.object({
   subject: z.string().trim().min(1, 'Subjek wajib diisi').max(200, 'Maksimal 200 karakter'),
   priority: z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']),
   message: z.string().trim().min(1, 'Deskripsi kendala wajib diisi'),
-  attachmentUrl: z.union([z.literal(''), z.url('Link tidak valid')]),
 });
 type TicketForm = z.infer<typeof ticketSchema>;
 
 function CreateTicketDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [imageError, setImageError] = useState<string>();
   const form = useForm<TicketForm>({
     resolver: zodResolver(ticketSchema),
-    defaultValues: { subject: '', priority: 'NORMAL', message: '', attachmentUrl: '' },
+    defaultValues: { subject: '', priority: 'NORMAL', message: '' },
   });
   const { errors } = form.formState;
 
-  const mutation = useApiMutation(
-    (data: TicketForm) => merchantSupportApi.createTicket({ ...data, attachmentUrl: data.attachmentUrl || undefined }),
-    {
-      successMessage: 'Tiket berhasil dikirim',
-      invalidate: [['merchant-tickets']],
-      onSuccess: (res) => router.push(`/dashboard/support/${res.data.id}`),
-    }
-  );
+  const mutation = useApiMutation((data: TicketForm) => merchantSupportApi.createTicket({ ...data, image }), {
+    successMessage: 'Tiket berhasil dikirim',
+    invalidate: [['merchant-tickets']],
+    onSuccess: (res) => router.push(`/dashboard/support/${res.data.id}`),
+  });
 
   return (
     <>
@@ -80,13 +79,17 @@ function CreateTicketDialog() {
             <FormField label="Deskripsi Kendala *" htmlFor="ticket-message" error={errors.message?.message}>
               <Textarea id="ticket-message" rows={5} placeholder="Jelaskan kendala Anda secara detail..." {...form.register('message')} />
             </FormField>
-            <FormField
-              label="Link Referensi (Opsional)"
-              htmlFor="ticket-url"
-              error={errors.attachmentUrl?.message}
-              hint="Tempel link Google Drive, Imgur, dsb jika ada bukti pendukung."
-            >
-              <Input id="ticket-url" type="url" placeholder="https://..." {...form.register('attachmentUrl')} />
+            <FormField label="Gambar Bukti (Opsional)" htmlFor="ticket-image" error={imageError}>
+              <PhotoInput
+                id="ticket-image"
+                file={image}
+                onChange={(file) => {
+                  const invalid = file && validateTicketImage(file);
+                  setImageError(invalid || undefined);
+                  setImage(invalid ? null : file);
+                }}
+                hint={`Klik untuk pilih screenshot (maks ${MAX_TICKET_IMAGE_MB}MB)`}
+              />
             </FormField>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
