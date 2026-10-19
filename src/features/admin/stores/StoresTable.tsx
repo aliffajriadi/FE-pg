@@ -15,7 +15,8 @@ import { TableState } from '@/components/shared/TableState';
 import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { GATEWAY_SHORT_LABEL, isManualGateway } from '@/lib/gateway';
-import { BalanceDialog, DailyLimitDialog, FeeDialog, HoldHoursDialog, PaymentGatewayDialog } from './StoreDialogs';
+import { DailyLimitDialog, FeeDialog, HoldHoursDialog, PaymentGatewayDialog } from './StoreDialogs';
+import { BalanceDialog } from './StoreBalanceDialog';
 
 function formatFee(store: AdminStore) {
   return store.feeType === 'FIXED' ? formatCurrency(store.feeValue) : `${store.feeValue}%`;

@@ -190,6 +190,11 @@ export interface WebhookChangeLog {
 export type AdminOrder = Order & { store: Store | null };
 export type AdminWithdrawal = Withdrawal & {
   store: Store & { user?: User; balance: number; totalBalance: number };
+  /** Sub admin yang ditugaskan mentransfer penarikan ini. */
+  assignedSubadmin: { id: number; name: string } | null;
+  assignedAt: string | null;
+  /** true = ditransfer sub admin dari saldonya. */
+  paidBySubadmin: boolean;
 };
 export type AdminBankAccount = BankAccount & { store: Store };
 
@@ -350,6 +355,23 @@ export interface Subadmin {
   /** Uang yang dipegang dari semua QRIS-nya. */
   balance: number;
   todayIncome: number;
+  /** Saldo pendapatan: fee + kode unik + biaya admin penarikan, dikurangi pengurangan admin. */
+  income: number;
+}
+
+export interface SubadminIncomeLog {
+  id: number;
+  amount: number;
+  description: string | null;
+  createdAt: string;
+  createdBy: { name: string } | null;
+}
+
+export interface SubadminIncomeDetail {
+  income: number;
+  earned: { fee: number; unique: number; withdrawalFee: number; total: number };
+  deducted: number;
+  logs: SubadminIncomeLog[];
 }
 
 export interface SubadminBalanceDetail extends SubadminBalanceSummary {
@@ -431,7 +453,8 @@ export const adminApi = {
     fetchApi<PaginatedResponse<MypgNotification>>(`/admin/mypg/notifications${toQuery({ ...params })}`),
   updateStoreManualInvoice: (id: number, enabled: boolean) =>
     fetchApi<Msg>(`/admin/stores/${id}/manual-invoice`, json('PATCH', { enabled })),
-  getStoreBalance: (id: number) => fetchApi<ApiResponse<StoreBalance>>(`/admin/stores/${id}/balance`),
+  getStoreBalance: (id: number, params: { page?: number; limit?: number } = {}) =>
+    fetchApi<ApiResponse<StoreBalance> & { pagination: Pagination }>(`/admin/stores/${id}/balance${toQuery({ ...params })}`),
   adjustStoreBalance: (id: number, body: { type: 'CREDIT' | 'DEBIT'; amount: number; description?: string }) =>
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),
 
@@ -457,6 +480,7 @@ export const adminApi = {
       method: 'POST',
       body,
     }),
+  assignWithdrawal: (id: number, subadminId: number | null) => fetchApi<Msg>(`/admin/withdrawals/${id}/assign`, json('POST', { subadminId })),
   rejectWithdrawal: (id: number, body: FormData) => fetchApi<Msg>(`/admin/withdrawals/${id}/reject`, { method: 'POST', body }),
   updateWithdrawalStatus: (id: number, body: FormData) => fetchApi<Msg>(`/admin/withdrawals/${id}/status`, { method: 'POST', body }),
   runAutoWithdrawals: () => fetchApi<ApiResponse<Record<string, number | boolean>>>('/admin/auto-withdrawals/run', json('POST')),
@@ -495,6 +519,10 @@ export const adminApi = {
     fetchApi<PaginatedResponse<SubadminBalanceLog>>(`/admin/subadmins/${id}/balance/logs${toQuery({ ...params })}`),
   getSubadminDailyRecap: (id: number, range: { from: string; to: string }) =>
     fetchApi<ApiResponse<DailyRecap>>(`/admin/subadmins/${id}/balance/daily${toQuery(range)}`),
+  getSubadminIncome: (id: number, params: { page?: number; limit?: number }) =>
+    fetchApi<ApiResponse<SubadminIncomeDetail> & { pagination: Pagination }>(`/admin/subadmins/${id}/income${toQuery({ ...params })}`),
+  deductSubadminIncome: (id: number, body: { amount: number; description?: string }) =>
+    fetchApi<Msg>(`/admin/subadmins/${id}/income`, json('POST', body)),
   adjustSubadminBalance: (id: number, body: SubadminBalanceAdjustment) =>
     fetchApi<Msg>(`/admin/subadmins/${id}/balance`, json('POST', body)),
 

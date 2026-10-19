@@ -1,5 +1,5 @@
 import { fetchApi, toQuery } from './client';
-import type { ApiResponse, PaginatedResponse, PaymentStatus } from '@/types';
+import type { ApiResponse, PaginatedResponse, PaymentStatus, WithdrawalStatus } from '@/types';
 
 export interface SubadminTransaction {
   id: number;
@@ -57,9 +57,12 @@ export interface SubadminDashboard {
   recent: SubadminTransaction[];
 }
 
-export type BalanceLogType = 'PAYMENT' | 'ADD' | 'SUBTRACT';
+export type BalanceLogType = 'PAYMENT' | 'ADD' | 'SUBTRACT' | 'WITHDRAWAL';
 
-/** Mutasi saldo sub admin: PAYMENT = invoice dibayar di QRIS-nya, ADD/SUBTRACT = penyesuaian super admin. */
+/**
+ * Mutasi saldo sub admin: PAYMENT = invoice dibayar di QRIS-nya, ADD/SUBTRACT = penyesuaian super admin,
+ * WITHDRAWAL = penarikan merchant yang ditransfer sub admin.
+ */
 export interface SubadminBalanceLog {
   id: number;
   type: BalanceLogType;
@@ -69,6 +72,7 @@ export interface SubadminBalanceLog {
   order: { invoiceCode: string; productName: string; amount: number; platformFee: number; store: { name: string } } | null;
   createdBy: { name: string } | null;
   qris: { id: number; name: string } | null;
+  withdrawal: { id: number; bankName: string; bankAccount: string; bankHolderName: string; store: { name: string } } | null;
 }
 
 export interface SubadminBalanceQris {
@@ -91,10 +95,18 @@ export interface PaymentBreakdown {
 }
 
 export interface SubadminBalanceSummary {
-  /** Uang yang dipegang: total masuk + ditambah admin - dikurangi admin. */
+  /** Uang yang dipegang: total masuk + ditambah admin - dikurangi admin - penarikan merchant yang ditransfer. */
   balance: number;
   today: { amount: number; count: number; breakdown: PaymentBreakdown };
-  allTime: { incoming: number; incomingCount: number; breakdown: PaymentBreakdown; added: number; subtracted: number };
+  allTime: {
+    incoming: number;
+    incomingCount: number;
+    breakdown: PaymentBreakdown;
+    added: number;
+    subtracted: number;
+    withdrawn: number;
+    withdrawnCount: number;
+  };
   qris: SubadminBalanceQris[];
 }
 
@@ -105,6 +117,7 @@ export interface DailyRecapRow extends PaymentBreakdown {
   incoming: number;
   added: number;
   subtracted: number;
+  withdrawn: number;
 }
 
 export interface DailyRecap {
@@ -123,6 +136,32 @@ export interface BalanceLogParams {
   to?: string;
 }
 
+/** Penarikan merchant yang ditugaskan admin. Hanya nominal transfer, biaya admin tidak dikirim. */
+export interface SubadminWithdrawal {
+  id: number;
+  transferAmount: number;
+  bankName: string;
+  bankAccount: string;
+  bankHolderName: string;
+  status: WithdrawalStatus;
+  /** Catatan merchant. */
+  note: string | null;
+  /** Catatan saat ditransfer. */
+  adminNote: string | null;
+  adminPhotoUrl: string | null;
+  createdAt: string;
+  assignedAt: string | null;
+  paidAt: string | null;
+  /** false = diproses langsung oleh admin, saldo Anda tidak terpotong. */
+  paidBySubadmin: boolean;
+  store: { name: string };
+}
+
+export interface SubadminWithdrawalsResponse extends PaginatedResponse<SubadminWithdrawal> {
+  /** Jumlah penarikan yang masih menunggu ditransfer. */
+  openCount: number;
+}
+
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 
 export const subadminApi = {
@@ -137,4 +176,11 @@ export const subadminApi = {
   getDailyRecap: (range: { from: string; to: string }) => fetchApi<ApiResponse<DailyRecap>>(`/subadmin/balance/daily${toQuery(range)}`),
   getBalanceLogs: (params: BalanceLogParams) =>
     fetchApi<PaginatedResponse<SubadminBalanceLog>>(`/subadmin/balance/logs${toQuery({ ...params })}`),
+  getWithdrawals: (params: { page?: number; limit?: number; status?: 'OPEN' | 'DONE' | 'ALL' }) =>
+    fetchApi<SubadminWithdrawalsResponse>(`/subadmin/withdrawals${toQuery({ ...params })}`),
+  markWithdrawalPaid: (id: number, body: FormData) => fetchApi<ApiResponse<unknown>>(`/subadmin/withdrawals/${id}/mark-paid`, { method: 'POST', body }),
+  getNotification: () => fetchApi<ApiResponse<{ discordWebhookUrl: string | null }>>('/subadmin/notification'),
+  updateNotification: (discordWebhookUrl: string) => fetchApi<ApiResponse<unknown>>('/subadmin/notification', json('PATCH', { discordWebhookUrl })),
+  testNotification: (discordWebhookUrl: string) => fetchApi<ApiResponse<unknown>>('/subadmin/notification/test', json('POST', { discordWebhookUrl })),
+  returnWithdrawal: (id: number, reason: string) => fetchApi<ApiResponse<unknown>>(`/subadmin/withdrawals/${id}/return`, json('POST', { reason })),
 };

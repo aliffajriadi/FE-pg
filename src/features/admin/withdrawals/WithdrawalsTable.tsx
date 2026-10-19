@@ -112,6 +112,7 @@ export default function WithdrawalsTable() {
                     <StatusBadge status={w.status} />
                     {w.isAuto && <Badge variant="secondary">Otomatis</Badge>}
                   </div>
+                  {w.assignedSubadmin && <p className="mt-1 text-xs text-muted-foreground">Sub admin: {w.assignedSubadmin.name}</p>}
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(w.createdAt)}</TableCell>
                 <TableCell className="text-right">

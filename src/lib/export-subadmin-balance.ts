@@ -4,7 +4,12 @@ import { downloadExcelSheets, fetchAllPages, RUPIAH_FORMAT, type ExcelColumn } f
 import type { DailyRecap, DailyRecapRow, SubadminBalanceLog } from '@/lib/api/subadmin';
 import type { PaginatedResponse } from '@/types';
 
-const LOG_TYPE_LABEL: Record<SubadminBalanceLog['type'], string> = { PAYMENT: 'Uang Masuk', ADD: 'Ditambah Admin', SUBTRACT: 'Dikurangi Admin' };
+const LOG_TYPE_LABEL: Record<SubadminBalanceLog['type'], string> = {
+  PAYMENT: 'Uang Masuk',
+  ADD: 'Ditambah Admin',
+  SUBTRACT: 'Dikurangi Admin',
+  WITHDRAWAL: 'Penarikan Merchant',
+};
 
 const rupiah = (value: number) => ({ value, type: Number, format: RUPIAH_FORMAT });
 // Tanggal ditulis sebagai teks agar tidak bergeser zona waktu di Excel
@@ -19,14 +24,15 @@ const RECAP_COLUMNS: ExcelColumn<DailyRecapRow>[] = [
   { header: 'Kode Unik', width: 11, cell: (d) => rupiah(d.unique) },
   { header: 'Ditambah Admin', width: 15, cell: (d) => rupiah(d.added) },
   { header: 'Dikurangi Admin', width: 15, cell: (d) => rupiah(d.subtracted) },
-  { header: 'Perubahan Saldo', width: 16, cell: (d) => rupiah(d.incoming + d.added - d.subtracted) },
+  { header: 'Penarikan Merchant', width: 18, cell: (d) => rupiah(d.withdrawn) },
+  { header: 'Perubahan Saldo', width: 16, cell: (d) => rupiah(d.incoming + d.added - d.subtracted - d.withdrawn) },
 ];
 
 const LOG_COLUMNS: ExcelColumn<SubadminBalanceLog>[] = [
   { header: 'Waktu', width: 17, cell: (l) => ({ value: format(new Date(l.occurredAt), 'dd/MM/yyyy HH:mm') }) },
   { header: 'Jenis', width: 16, cell: (l) => ({ value: LOG_TYPE_LABEL[l.type] }) },
   { header: 'Kode Invoice', width: 26, cell: (l) => ({ value: l.order?.invoiceCode ?? '' }) },
-  { header: 'Merchant', width: 22, cell: (l) => ({ value: l.order?.store.name ?? '' }) },
+  { header: 'Merchant', width: 22, cell: (l) => ({ value: (l.order ?? l.withdrawal)?.store.name ?? '' }) },
   { header: 'QRIS', width: 18, cell: (l) => ({ value: l.qris?.name ?? '' }) },
   { header: 'Keterangan', width: 30, cell: (l) => ({ value: l.order ? l.order.productName : (l.description ?? '') }) },
   { header: 'Oleh', width: 16, cell: (l) => ({ value: l.createdBy?.name ?? '' }) },
@@ -34,7 +40,7 @@ const LOG_COLUMNS: ExcelColumn<SubadminBalanceLog>[] = [
   { header: 'Fee', width: 11, cell: (l) => (l.order ? rupiah(l.order.platformFee) : null) },
   { header: 'Kode Unik', width: 11, cell: (l) => (l.order ? rupiah(l.amount - l.order.amount - l.order.platformFee) : null) },
   // Bertanda agar kolom bisa langsung dijumlahkan menjadi perubahan saldo
-  { header: 'Nominal', width: 14, cell: (l) => rupiah(l.type === 'SUBTRACT' ? -l.amount : l.amount) },
+  { header: 'Nominal', width: 14, cell: (l) => rupiah(l.type === 'SUBTRACT' || l.type === 'WITHDRAWAL' ? -l.amount : l.amount) },
 ];
 
 const slug = (text: string) => text.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();

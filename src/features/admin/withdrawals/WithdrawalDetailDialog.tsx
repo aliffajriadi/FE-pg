@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Eye } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertTriangle, Eye, UserCheck } from 'lucide-react';
 import { adminApi, type AdminWithdrawal } from '@/lib/api/admin';
 import type { WithdrawalStatus } from '@/types';
 import { statusLabel } from '@/lib/status';
@@ -25,12 +26,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-type Mode = 'detail' | 'pay' | 'reject' | 'status';
-type Action = Exclude<Mode, 'detail'>;
+type Mode = 'detail' | 'pay' | 'reject' | 'status' | 'assign';
+type Action = Exclude<Mode, 'detail' | 'assign'>;
 
 const WD_STATUSES: WithdrawalStatus[] = ['PENDING', 'APPROVED', 'PAID', 'REJECTED', 'CANCELLED'];
 // Status yang saldonya masih terpotong (sama dengan logika backend)
 const HELD_STATUSES: WithdrawalStatus[] = ['PENDING', 'APPROVED', 'PAID'];
+// Status yang masih bisa dilempar ke sub admin
+const ASSIGNABLE_STATUSES: WithdrawalStatus[] = ['PENDING', 'APPROVED'];
+const INVALIDATE = [['admin-withdrawals'], ['admin-stores'], ['admin-subadmins']];
 
 export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWithdrawal }) {
   const [open, setOpen] = useState(false);
@@ -40,6 +44,7 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
   const [noteError, setNoteError] = useState('');
   const [newStatus, setNewStatus] = useState<WithdrawalStatus | ''>('');
   const [statusError, setStatusError] = useState('');
+  const [subadminId, setSubadminId] = useState('');
 
   const fee = w.fee ?? 0;
   const net = w.amount - fee;
@@ -51,8 +56,27 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
     setNoteError('');
     setNewStatus('');
     setStatusError('');
+    setSubadminId('');
     setOpen(true);
   };
+
+  const canAssign = ASSIGNABLE_STATUSES.includes(w.status);
+  const subadmins = useQuery({
+    queryKey: ['admin-subadmins'],
+    queryFn: adminApi.getSubadmins,
+    select: (res) => res.data.filter((s) => s.isActive),
+    enabled: open && mode === 'assign',
+  });
+  const subadminOptions = (subadmins.data ?? []).map((s) => ({
+    value: String(s.id),
+    label: `${s.name} — saldo ${formatCurrency(s.balance)}${s.balance < net ? ' (kurang)' : ''}`,
+    disabled: s.balance < net || s.id === w.assignedSubadmin?.id,
+  }));
+
+  const assign = useApiMutation((id: number | null) => adminApi.assignWithdrawal(w.id, id), {
+    invalidate: INVALIDATE,
+    onSuccess: () => setOpen(false),
+  });
 
   const mutation = useApiMutation(
     (action: Action) => {
@@ -66,7 +90,7 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
       return action === 'pay' ? adminApi.markWithdrawalPaid(w.id, body) : adminApi.rejectWithdrawal(w.id, body);
     },
     {
-      invalidate: [['admin-withdrawals'], ['admin-stores']],
+      invalidate: INVALIDATE,
       onSuccess: () => setOpen(false),
     },
   );
@@ -100,7 +124,9 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
                   ? 'Tolak Penarikan'
                   : mode === 'status'
                     ? 'Ubah Status Penarikan'
-                    : 'Detail Penarikan'}
+                    : mode === 'assign'
+                      ? 'Lempar ke Sub Admin'
+                      : 'Detail Penarikan'}
             </DialogTitle>
           </DialogHeader>
 
@@ -140,6 +166,18 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
                 <Row label="Status">
                   <StatusBadge status={w.status} />
                 </Row>
+                {w.assignedSubadmin && (
+                  <Row label="Ditangani Sub Admin">
+                    <p className="font-semibold">{w.assignedSubadmin.name}</p>
+                    {w.status === 'PAID' ? (
+                      <p className="text-xs text-muted-foreground">
+                        {w.paidBySubadmin ? 'Ditransfer dari saldo sub admin' : 'Dibayar langsung oleh admin'}
+                      </p>
+                    ) : (
+                      w.assignedAt && <p className="text-xs text-muted-foreground">Sejak {formatDate(w.assignedAt)}</p>
+                    )}
+                  </Row>
+                )}
                 <Row label="Tanggal Dibuat">{formatDate(w.createdAt)}</Row>
               </>
             )}
@@ -151,6 +189,27 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
               <span>
                 Penarikan ditolak dan <strong>saldo akan dikembalikan</strong> otomatis ke merchant.
               </span>
+            </div>
+          )}
+
+          {mode === 'assign' && (
+            <div className="space-y-3">
+              <FormField label="Sub Admin *" htmlFor="wd-subadmin">
+                <SimpleSelect
+                  id="wd-subadmin"
+                  value={subadminId}
+                  onValueChange={setSubadminId}
+                  options={subadminOptions}
+                  placeholder={subadmins.isLoading ? 'Memuat...' : subadminOptions.length ? 'Pilih sub admin' : 'Belum ada sub admin aktif'}
+                />
+              </FormField>
+              <div className="flex gap-2 rounded-lg bg-blue-500/15 p-3 text-sm text-blue-700 dark:text-blue-400">
+                <UserCheck className="size-4 shrink-0" />
+                <span>
+                  Sub admin mentransfer <strong>{formatCurrency(net)}</strong> ke rekening merchant dari uang yang dipegangnya, lalu
+                  saldonya otomatis berkurang. Biaya admin tidak ditampilkan ke sub admin.
+                </span>
+              </div>
             </div>
           )}
 
@@ -169,6 +228,14 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
                   placeholder={`Saat ini: ${statusLabel(w.status)}`}
                 />
               </FormField>
+              {w.status === 'PAID' && w.paidBySubadmin && newStatus && (
+                <div className="flex gap-2 rounded-lg bg-amber-500/15 p-3 text-sm text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="size-4 shrink-0" />
+                  <span>
+                    Potongan saldo sub admin {w.assignedSubadmin?.name} sebesar {formatCurrency(net)} akan <strong>dibatalkan</strong>.
+                  </span>
+                </div>
+              )}
               {balanceEffect && (
                 <div className="flex gap-2 rounded-lg bg-amber-500/15 p-3 text-sm text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="size-4 shrink-0" />
@@ -188,7 +255,7 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
             </div>
           )}
 
-          {mode !== 'detail' && (
+          {mode !== 'detail' && mode !== 'assign' && (
             <div className="space-y-4">
               <FormField
                 label={
@@ -220,6 +287,16 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
                 <Button variant="outline" onClick={() => setMode('status')}>
                   Ubah Status
                 </Button>
+                {canAssign && w.assignedSubadmin && (
+                  <Button variant="outline" onClick={() => assign.mutate(null)} disabled={assign.isPending}>
+                    Tarik dari Sub Admin
+                  </Button>
+                )}
+                {canAssign && (
+                  <Button variant="outline" onClick={() => setMode('assign')}>
+                    <UserCheck /> {w.assignedSubadmin ? 'Ganti Sub Admin' : 'Lempar ke Sub Admin'}
+                  </Button>
+                )}
                 {w.status === 'PENDING' && (
                   <>
                     <Button variant="destructive" onClick={() => setMode('reject')}>
@@ -231,22 +308,28 @@ export function WithdrawalDetailDialog({ withdrawal: w }: { withdrawal: AdminWit
               </>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setMode('detail')} disabled={mutation.isPending}>
+                <Button variant="outline" onClick={() => setMode('detail')} disabled={mutation.isPending || assign.isPending}>
                   Kembali
                 </Button>
-                <Button
-                  variant={mode === 'reject' || (mode === 'status' && newStatus === 'REJECTED') ? 'destructive' : 'default'}
-                  onClick={() => submit(mode)}
-                  disabled={mutation.isPending}
-                >
-                  {mutation.isPending
-                    ? 'Memproses...'
-                    : mode === 'reject'
-                      ? 'Tolak Penarikan'
-                      : mode === 'status'
-                        ? 'Simpan Status'
-                        : 'Tandai Dibayar'}
-                </Button>
+                {mode === 'assign' ? (
+                  <Button onClick={() => assign.mutate(Number(subadminId))} disabled={!subadminId || assign.isPending}>
+                    {assign.isPending ? 'Memproses...' : 'Lempar'}
+                  </Button>
+                ) : (
+                  <Button
+                    variant={mode === 'reject' || (mode === 'status' && newStatus === 'REJECTED') ? 'destructive' : 'default'}
+                    onClick={() => submit(mode)}
+                    disabled={mutation.isPending}
+                  >
+                    {mutation.isPending
+                      ? 'Memproses...'
+                      : mode === 'reject'
+                        ? 'Tolak Penarikan'
+                        : mode === 'status'
+                          ? 'Simpan Status'
+                          : 'Tandai Dibayar'}
+                  </Button>
+                )}
               </>
             )}
           </DialogFooter>

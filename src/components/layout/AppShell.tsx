@@ -103,11 +103,12 @@ const MERCHANT_NAV: NavItem[] = [
   { href: '/docs', label: 'Dokumentasi API', icon: BookOpen, external: true },
 ];
 
-// Sub admin: hanya riwayat transaksi QRIS yang ditugaskan super admin
+// Sub admin: transaksi QRIS yang ditugaskan super admin, saldo yang dipegang, dan penarikan merchant yang diteruskan admin
 const SUBADMIN_NAV: NavItem[] = [
   { href: '/subadmin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/subadmin/transactions', label: 'Riwayat Transaksi', icon: FileText },
   { href: '/subadmin/balance', label: 'Saldo', icon: Wallet },
+  { href: '/subadmin/withdrawals', label: 'Penarikan Merchant', icon: Banknote },
   { href: '/subadmin/support', label: 'Tiket Support', icon: Headphones },
   { href: '/subadmin/account', label: 'Pengaturan Akun', icon: Settings },
 ];

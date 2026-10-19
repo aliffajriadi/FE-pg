@@ -1,30 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2, Wallet } from 'lucide-react';
-import { adminApi, type Subadmin, type SubadminBalanceAdjustment } from '@/lib/api/admin';
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { CalendarCheck, Coins, Pencil, Plus, Trash2, Users, Wallet } from 'lucide-react';
+import { adminApi, type Subadmin } from '@/lib/api/admin';
 import { useApiMutation } from '@/hooks/use-api-mutation';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/lib/utils';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
+import { StatCard } from '@/components/shared/StatCard';
 import { TableState } from '@/components/shared/TableState';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { FormField } from '@/components/shared/FormField';
 import { ToneBadge } from '@/components/shared/StatusBadge';
-import { AmountInput } from '@/components/shared/AmountInput';
-import { SimpleSelect } from '@/components/shared/SimpleSelect';
-import { Pagination } from '@/components/shared/Pagination';
-import { Textarea } from '@/components/ui/textarea';
-import { BalanceLogTable } from '@/features/subadmin/BalanceLogTable';
-import { BalanceBreakdown, DailyRecapTable } from '@/features/subadmin/BalanceRecap';
 
-const KEYS = ['admin-subadmins'];
+export const SUBADMINS_KEY = ['admin-subadmins'];
+const KEYS = SUBADMINS_KEY;
 const MIN_PASSWORD = 8;
 
 interface FormState {
@@ -45,7 +42,15 @@ function validate(form: FormState, isEdit: boolean): FormErrors {
 }
 
 /** takenBy: id QRIS -> nama sub admin lain yang sudah memegangnya (satu QRIS hanya satu sub admin). */
-function SubadminDialog({ subadmin, takenBy }: { subadmin?: Subadmin; takenBy: Map<number, string> }) {
+export function SubadminDialog({
+  subadmin,
+  takenBy,
+  withLabel,
+}: {
+  subadmin?: Subadmin;
+  takenBy: Map<number, string>;
+  withLabel?: boolean;
+}) {
   const isEdit = !!subadmin;
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>({ name: '', email: '', password: '', qrisIds: [] });
@@ -92,9 +97,15 @@ function SubadminDialog({ subadmin, takenBy }: { subadmin?: Subadmin; takenBy: M
   return (
     <>
       {subadmin ? (
-        <Button variant="ghost" size="icon-sm" onClick={openDialog} aria-label="Ubah sub admin">
-          <Pencil />
-        </Button>
+        withLabel ? (
+          <Button variant="outline" onClick={openDialog}>
+            <Pencil /> Ubah Akun
+          </Button>
+        ) : (
+          <Button variant="ghost" size="icon-sm" onClick={openDialog} aria-label="Ubah sub admin">
+            <Pencil />
+          </Button>
+        )
       ) : (
         <Button onClick={openDialog}>
           <Plus /> Tambah Sub Admin
@@ -175,156 +186,9 @@ function SubadminDialog({ subadmin, takenBy }: { subadmin?: Subadmin; takenBy: M
   );
 }
 
-const ADJUST_OPTIONS = [
-  { value: 'SUBTRACT', label: 'Kurangi saldo (mis. uang disetor)' },
-  { value: 'ADD', label: 'Tambah saldo' },
-];
-const LOG_LIMIT = 10;
-
-function BalanceDialog({ subadmin }: { subadmin: Subadmin }) {
-  const [open, setOpen] = useState(false);
-  const [type, setType] = useState<SubadminBalanceAdjustment['type']>('SUBTRACT');
-  const [amount, setAmount] = useState<number | undefined>();
-  const [description, setDescription] = useState('');
-  const [amountError, setAmountError] = useState<string>();
-  const [page, setPage] = useState(1);
-
-  const balanceKey = ['admin-subadmin-balance', subadmin.id];
-  const { data, isLoading, error } = useQuery({
-    queryKey: [...balanceKey, page],
-    queryFn: () => adminApi.getSubadminBalance(subadmin.id, { page, limit: LOG_LIMIT }),
-    enabled: open,
-    placeholderData: keepPreviousData,
-  });
-  const detail = data?.data;
-
-  const mutation = useApiMutation(
-    () => adminApi.adjustSubadminBalance(subadmin.id, { type, amount: amount!, description: description.trim() || undefined }),
-    {
-      invalidate: [KEYS, balanceKey, ['admin-subadmin-daily', subadmin.id]],
-      onSuccess: () => {
-        setAmount(undefined);
-        setDescription('');
-        setPage(1);
-      },
-    },
-  );
-
-  const openDialog = () => {
-    setType('SUBTRACT');
-    setAmount(undefined);
-    setDescription('');
-    setAmountError(undefined);
-    setPage(1);
-    setOpen(true);
-  };
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const balance = detail?.balance ?? subadmin.balance;
-    const next = !amount ? 'Nominal wajib diisi' : type === 'SUBTRACT' && amount > balance ? 'Melebihi saldo saat ini' : undefined;
-    setAmountError(next);
-    if (!next) mutation.mutate();
-  };
-
-  return (
-    <>
-      <Button variant="ghost" size="icon-sm" onClick={openDialog} aria-label="Kelola saldo">
-        <Wallet />
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Saldo {subadmin.name}</DialogTitle>
-            <DialogDescription>
-              Uang yang dipegang sub admin ini dari semua QRIS-nya. Kurangi saldo saat uangnya sudah disetor.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Saldo Dipegang</p>
-              <p className="text-lg font-semibold">{formatCurrency(detail?.balance ?? subadmin.balance)}</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Masuk Hari Ini</p>
-              <p className="text-lg font-semibold">{formatCurrency(detail?.today.amount ?? subadmin.todayIncome)}</p>
-            </div>
-            <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground">Total Masuk</p>
-              <p className="text-lg font-semibold">{detail ? formatCurrency(detail.allTime.incoming) : '-'}</p>
-            </div>
-          </div>
-
-          {!!detail?.qris.length && (
-            <div className="flex flex-wrap gap-1 text-xs">
-              {detail.qris.map((q) => (
-                <ToneBadge key={q.id} tone={q.isAssigned ? 'neutral' : 'warning'}>
-                  {q.name}: {formatCurrency(q.totalAmount)}
-                  {!q.isAssigned && ' (sudah dipindah)'}
-                </ToneBadge>
-              ))}
-            </div>
-          )}
-
-          {detail && <BalanceBreakdown breakdown={detail.allTime.breakdown} />}
-
-          <form onSubmit={submit} className="space-y-3 rounded-lg border p-3">
-            <FormField label="Jenis" htmlFor="bal-type">
-              <SimpleSelect
-                id="bal-type"
-                value={type}
-                onValueChange={(v) => setType((v || 'SUBTRACT') as SubadminBalanceAdjustment['type'])}
-                options={ADJUST_OPTIONS}
-              />
-            </FormField>
-            <FormField label="Nominal *" htmlFor="bal-amount" error={amountError}>
-              <AmountInput
-                id="bal-amount"
-                value={amount}
-                onChange={(v) => {
-                  setAmount(v);
-                  setAmountError(undefined);
-                }}
-                invalid={!!amountError}
-              />
-            </FormField>
-            <FormField label="Catatan" htmlFor="bal-note">
-              <Textarea
-                id="bal-note"
-                rows={2}
-                placeholder="Mis. setor tunai ke kantor"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </FormField>
-            <div className="flex justify-end">
-              <Button type="submit" variant={type === 'SUBTRACT' ? 'destructive' : 'default'} disabled={mutation.isPending}>
-                {mutation.isPending ? 'Menyimpan...' : type === 'SUBTRACT' ? 'Kurangi Saldo' : 'Tambah Saldo'}
-              </Button>
-            </div>
-          </form>
-
-          <DailyRecapTable
-            id={`recap-period-${subadmin.id}`}
-            queryKey={['admin-subadmin-daily', subadmin.id]}
-            fetchRecap={(range) => adminApi.getSubadminDailyRecap(subadmin.id, range)}
-            fetchLogs={(params) => adminApi.getSubadminBalanceLogs(subadmin.id, params)}
-            exportName={subadmin.name}
-          />
-
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Riwayat Saldo</p>
-            <div className="rounded-lg border">
-              <BalanceLogTable logs={detail?.logs ?? []} isLoading={isLoading} error={error} />
-            </div>
-            <Pagination page={page} totalPages={data?.pagination.totalPages ?? 1} onPageChange={setPage} />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
+/** id QRIS -> nama sub admin lain yang sudah memegangnya (satu QRIS hanya satu sub admin). */
+export const qrisHolders = (subadmins: Subadmin[], exceptUserId?: number) =>
+  new Map(subadmins.filter((s) => s.id !== exceptUserId).flatMap((s) => s.qris.map((q) => [q.id, s.name] as const)));
 
 export default function Subadmins() {
   const { data, isLoading, error } = useQuery({ queryKey: KEYS, queryFn: adminApi.getSubadmins, select: (res) => res.data });
@@ -336,36 +200,56 @@ export default function Subadmins() {
   const remove = useApiMutation(adminApi.deleteSubadmin, { invalidate: [KEYS] });
 
   const subadmins = data ?? [];
-  const holders = new Map(subadmins.flatMap((s) => s.qris.map((q) => [q.id, { userId: s.id, name: s.name }] as const)));
-  // QRIS yang dipegang sub admin lain tidak bisa dipilih untuk sub admin ini
-  const takenFor = (userId?: number) => new Map([...holders].filter(([, h]) => h.userId !== userId).map(([qrisId, h]) => [qrisId, h.name]));
+  const total = (pick: (s: Subadmin) => number) => subadmins.reduce((sum, s) => sum + pick(s), 0);
 
   return (
     <>
-      <PageHeader title="Sub Admin" description="Akun yang memantau transaksi QRIS tertentu dan bisa menandai invoice-nya dibayar.">
-        <SubadminDialog takenBy={takenFor()} />
+      <PageHeader
+        title="Sub Admin"
+        description="Akun yang memegang QRIS tertentu: memantau transaksinya, menandai dibayar, dan mentransfer penarikan merchant."
+      >
+        <SubadminDialog takenBy={qrisHolders(subadmins)} />
       </PageHeader>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Sub Admin"
+          icon={Users}
+          value={subadmins.length.toLocaleString('id-ID')}
+          hint={`${subadmins.filter((s) => s.isActive).length} aktif`}
+        />
+        <StatCard label="Total Saldo Dipegang" icon={Wallet} value={formatCurrency(total((s) => s.balance))} hint="Semua sub admin" />
+        <StatCard label="Total Saldo Pendapatan" icon={Coins} value={formatCurrency(total((s) => s.income))} hint="Belum disetor" />
+        <StatCard label="Masuk Hari Ini" icon={CalendarCheck} value={formatCurrency(total((s) => s.todayIncome))} hint="Semua QRIS (WIB)" />
+      </div>
 
       <Card className="py-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nama</TableHead>
+              <TableHead>Sub Admin</TableHead>
               <TableHead>QRIS</TableHead>
               <TableHead className="text-right">Saldo Dipegang</TableHead>
+              <TableHead className="text-right">Pendapatan</TableHead>
               <TableHead className="text-right">Masuk Hari Ini</TableHead>
               <TableHead>Aktif</TableHead>
-              <TableHead>Dibuat</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableState colSpan={7} isLoading={isLoading} error={error} isEmpty={!subadmins.length} emptyText="Belum ada sub admin" />
             {subadmins.map((s) => (
-              <TableRow key={s.id}>
+              <TableRow key={s.id} className={s.isActive ? undefined : 'opacity-60'}>
                 <TableCell>
-                  <p className="font-medium">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.email}</p>
+                  <Link href={`/admin/subadmins/${s.id}`} className="group flex items-center gap-3">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-semibold text-primary">
+                      {s.name.charAt(0).toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-medium group-hover:text-primary group-hover:underline">{s.name}</span>
+                      <span className="block text-xs text-muted-foreground">{s.email}</span>
+                    </span>
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <div className="flex max-w-xs flex-wrap gap-1">
@@ -379,6 +263,7 @@ export default function Subadmins() {
                   </div>
                 </TableCell>
                 <TableCell className="text-right font-semibold whitespace-nowrap">{formatCurrency(s.balance)}</TableCell>
+                <TableCell className="text-right whitespace-nowrap">{formatCurrency(s.income)}</TableCell>
                 <TableCell className="text-right whitespace-nowrap text-emerald-600">{formatCurrency(s.todayIncome)}</TableCell>
                 <TableCell>
                   <Switch
@@ -388,11 +273,12 @@ export default function Subadmins() {
                     aria-label={`Aktifkan ${s.name}`}
                   />
                 </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(s.createdAt, false)}</TableCell>
                 <TableCell>
-                  <div className="flex justify-end gap-1">
-                    <BalanceDialog subadmin={s} />
-                    <SubadminDialog subadmin={s} takenBy={takenFor(s.id)} />
+                  <div className="flex items-center justify-end gap-1">
+                    <Link href={`/admin/subadmins/${s.id}`} className={buttonVariants({ size: 'sm' })}>
+                      <Wallet /> Kelola Saldo
+                    </Link>
+                    <SubadminDialog subadmin={s} takenBy={qrisHolders(subadmins, s.id)} />
                     <ConfirmAction
                       destructive
                       size="icon-sm"

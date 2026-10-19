@@ -8,12 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { adminApi, type AdminStore } from '@/lib/api/admin';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { optionalNumber, requiredNumber, toOptionalNumber } from '@/lib/validations/common';
-import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
@@ -434,144 +430,6 @@ export function DailyLimitDialog({ store }: { store: AdminStore }) {
             </FormField>
             <DialogActions pending={mutation.isPending} onCancel={() => setOpen(false)} />
           </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// ─── Kelola saldo (penyesuaian manual) ───────────────────────
-const balanceSchema = z.object({
-  type: z.enum(['CREDIT', 'DEBIT']),
-  amount: z.number({ error: 'Nominal wajib diisi' }).min(1, 'Minimal Rp1'),
-  description: z.string().optional(),
-});
-type BalanceForm = z.infer<typeof balanceSchema>;
-
-export function BalanceDialog({ store }: { store: AdminStore }) {
-  const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<BalanceForm | null>(null);
-  const form = useForm<BalanceForm>({
-    resolver: zodResolver(balanceSchema),
-    defaultValues: { type: 'CREDIT' },
-  });
-
-  const { data: balance } = useQuery({
-    queryKey: ['admin-store-balance', store.id],
-    queryFn: () => adminApi.getStoreBalance(store.id),
-    select: (res) => res.data,
-    enabled: open,
-  });
-
-  const mutation = useApiMutation((data: BalanceForm) => adminApi.adjustStoreBalance(store.id, data), {
-    invalidate: [STORES_KEY, ['admin-store-balance', store.id]],
-    onSuccess: () => {
-      setPending(null);
-      setOpen(false);
-    },
-  });
-
-  return (
-    <>
-      <Button
-        size="sm"
-        onClick={() => {
-          form.reset({ type: 'CREDIT', amount: undefined, description: '' });
-          setPending(null);
-          setOpen(true);
-        }}
-      >
-        Saldo
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Kelola Saldo</DialogTitle>
-            <DialogDescription>{store.name}</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-3 gap-2 rounded-lg border bg-muted/40 p-3 text-center text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">Total</p>
-              <p className="font-bold">{formatCurrency(balance?.totalBalance ?? store.balance)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Tersedia</p>
-              <p className="font-bold text-emerald-600">{balance ? formatCurrency(balance.availableBalance) : '...'}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Ditahan</p>
-              <p className="font-bold text-amber-600">{balance ? formatCurrency(balance.pendingBalance) : '...'}</p>
-            </div>
-          </div>
-
-          {pending ? (
-            <div className="space-y-4">
-              <p className="text-sm">
-                Konfirmasi <strong>{pending.type === 'CREDIT' ? 'penambahan' : 'pengurangan'}</strong> saldo sebesar{' '}
-                <strong>{formatCurrency(pending.amount)}</strong>?
-              </p>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setPending(null)} disabled={mutation.isPending}>
-                  Kembali
-                </Button>
-                <Button onClick={() => mutation.mutate(pending)} disabled={mutation.isPending}>
-                  {mutation.isPending ? 'Memproses...' : 'Ya, simpan'}
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <form onSubmit={form.handleSubmit(setPending)} className="space-y-4">
-              <Controller
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <RadioGroup value={field.value} onValueChange={field.onChange} className="grid-cols-2">
-                    {[
-                      { value: 'CREDIT', label: 'Tambah Saldo' },
-                      { value: 'DEBIT', label: 'Kurangi Saldo' },
-                    ].map((opt) => (
-                      <Label key={opt.value} className="cursor-pointer rounded-lg border p-3 font-normal">
-                        <RadioGroupItem value={opt.value} /> {opt.label}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                )}
-              />
-              <FormField label="Nominal (Rp)" htmlFor="adj-amount" error={form.formState.errors.amount?.message}>
-                <Input
-                  id="adj-amount"
-                  type="number"
-                  min={1}
-                  placeholder="Contoh: 10000"
-                  {...form.register('amount', { valueAsNumber: true })}
-                />
-              </FormField>
-              <FormField label="Keterangan" htmlFor="adj-desc">
-                <Textarea id="adj-desc" rows={3} placeholder="Alasan penyesuaian saldo..." {...form.register('description')} />
-              </FormField>
-              <DialogActions pending={false} onCancel={() => setOpen(false)} label="Lanjutkan" />
-            </form>
-          )}
-
-          {!!balance?.recentLogs.length && (
-            <div className="space-y-2 border-t pt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Riwayat Saldo Terakhir</p>
-              <ul className="max-h-40 space-y-1.5 overflow-y-auto text-xs">
-                {balance.recentLogs.map((log) => (
-                  <li key={log.id} className="flex justify-between gap-3">
-                    <span className="truncate text-muted-foreground" title={log.description ?? ''}>
-                      {formatDate(log.createdAt)} · {log.description || '-'}
-                    </span>
-                    <span className={log.type === 'CREDIT' ? 'text-emerald-600' : 'text-red-600'}>
-                      {log.type === 'CREDIT' ? '+' : '-'}
-                      {formatCurrency(log.amount)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </>

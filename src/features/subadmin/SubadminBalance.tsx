@@ -4,18 +4,16 @@ import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ArrowDownCircle, CalendarCheck, TrendingUp, Wallet } from 'lucide-react';
 import { subadminApi } from '@/lib/api/subadmin';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { StatCard } from '@/components/shared/StatCard';
 import { StatusTabs } from '@/components/shared/StatusTabs';
 import { Pagination } from '@/components/shared/Pagination';
 import { RefreshButton } from '@/components/shared/RefreshButton';
-import { ToneBadge } from '@/components/shared/StatusBadge';
 import { BALANCE_LOG_TABS, BalanceLogTable } from './BalanceLogTable';
-import { BalanceBreakdown, DailyRecapTable } from './BalanceRecap';
+import { BalanceBreakdown, DailyRecapTable, QrisBalanceTable } from './BalanceRecap';
 
 export default function SubadminBalance() {
   const [type, setType] = useState('ALL');
@@ -70,10 +68,10 @@ export default function SubadminBalance() {
               hint={`${data.allTime.incomingCount.toLocaleString('id-ID')} transaksi sepanjang waktu`}
             />
             <StatCard
-              label="Dikurangi Admin"
+              label="Uang Keluar"
               icon={ArrowDownCircle}
-              value={formatCurrency(data.allTime.subtracted)}
-              hint={data.allTime.added ? `Ditambah admin ${formatCurrency(data.allTime.added)}` : 'Mis. uang yang sudah disetor'}
+              value={formatCurrency(data.allTime.subtracted + data.allTime.withdrawn)}
+              hint={`Penarikan merchant ${formatCurrency(data.allTime.withdrawn)} · dikurangi admin ${formatCurrency(data.allTime.subtracted)}${data.allTime.added ? ` · ditambah admin ${formatCurrency(data.allTime.added)}` : ''}`}
             />
           </div>
 
@@ -95,45 +93,7 @@ export default function SubadminBalance() {
             <CardHeader className="pb-4">
               <CardTitle>Per QRIS</CardTitle>
             </CardHeader>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>QRIS</TableHead>
-                  <TableHead className="text-right">Hari Ini</TableHead>
-                  <TableHead className="text-right">Total Masuk</TableHead>
-                  <TableHead className="text-right">Transaksi</TableHead>
-                  <TableHead>Terakhir Dibayar</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!data.qris.length && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                      Belum ada QRIS yang ditugaskan ke akun Anda.
-                    </TableCell>
-                  </TableRow>
-                )}
-                {data.qris.map((q) => (
-                  <TableRow key={q.id}>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{q.name}</span>
-                        {!q.isAssigned && <ToneBadge tone="neutral">Sudah dipindah</ToneBadge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right whitespace-nowrap">
-                      {formatCurrency(q.todayAmount)}
-                      <p className="text-xs text-muted-foreground">{q.todayCount} transaksi</p>
-                    </TableCell>
-                    <TableCell className="text-right font-medium whitespace-nowrap">{formatCurrency(q.totalAmount)}</TableCell>
-                    <TableCell className="text-right">{q.totalCount.toLocaleString('id-ID')}</TableCell>
-                    <TableCell className="whitespace-nowrap text-muted-foreground">
-                      {q.lastPaidAt ? formatDate(q.lastPaidAt) : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <QrisBalanceTable qris={data.qris} emptyText="Belum ada QRIS yang ditugaskan ke akun Anda." />
           </Card>
         </>
       )}

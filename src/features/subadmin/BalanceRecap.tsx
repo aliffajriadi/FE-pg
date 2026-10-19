@@ -2,12 +2,13 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { ApiResponse, PaginatedResponse } from '@/types';
-import type { DailyRecap, PaymentBreakdown, SubadminBalanceLog } from '@/lib/api/subadmin';
+import type { DailyRecap, PaymentBreakdown, SubadminBalanceLog, SubadminBalanceQris } from '@/lib/api/subadmin';
 import { exportSubadminBalance } from '@/lib/export-subadmin-balance';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TableState } from '@/components/shared/TableState';
 import { ExportButton } from '@/components/shared/ExportButton';
+import { ToneBadge } from '@/components/shared/StatusBadge';
 import { CustomRangeInput, PeriodSelect, dayLabel, rangeText, usePeriodRange } from './period';
 
 /** Rincian uang masuk: siapa pemilik uang yang dipegang sub admin. */
@@ -27,6 +28,49 @@ export function BalanceBreakdown({ breakdown }: { breakdown: PaymentBreakdown })
         </div>
       ))}
     </div>
+  );
+}
+
+/** Uang masuk per QRIS (yang dipegang sekarang + QRIS lama yang pernah menghasilkan uang). */
+export function QrisBalanceTable({ qris, emptyText }: { qris: SubadminBalanceQris[]; emptyText: string }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>QRIS</TableHead>
+          <TableHead className="text-right">Hari Ini</TableHead>
+          <TableHead className="text-right">Total Masuk</TableHead>
+          <TableHead className="text-right">Transaksi</TableHead>
+          <TableHead>Terakhir Dibayar</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {!qris.length && (
+          <TableRow>
+            <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
+              {emptyText}
+            </TableCell>
+          </TableRow>
+        )}
+        {qris.map((q) => (
+          <TableRow key={q.id}>
+            <TableCell>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{q.name}</span>
+                {!q.isAssigned && <ToneBadge tone="neutral">Sudah dipindah</ToneBadge>}
+              </div>
+            </TableCell>
+            <TableCell className="text-right whitespace-nowrap">
+              {formatCurrency(q.todayAmount)}
+              <p className="text-xs text-muted-foreground">{q.todayCount} transaksi</p>
+            </TableCell>
+            <TableCell className="text-right font-medium whitespace-nowrap">{formatCurrency(q.totalAmount)}</TableCell>
+            <TableCell className="text-right">{q.totalCount.toLocaleString('id-ID')}</TableCell>
+            <TableCell className="whitespace-nowrap text-muted-foreground">{q.lastPaidAt ? formatDate(q.lastPaidAt) : '-'}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -62,7 +106,8 @@ export function DailyRecapTable({
   });
 
   const showAdjust = !!data && (data.totals.added > 0 || data.totals.subtracted > 0);
-  const cols = showAdjust ? 8 : 6;
+  const showWithdrawn = !!data && data.totals.withdrawn > 0;
+  const cols = 6 + (showAdjust ? 2 : 0) + (showWithdrawn ? 1 : 0);
 
   return (
     <div className="space-y-3">
@@ -90,12 +135,13 @@ export function DailyRecapTable({
               <TableHead className="text-right">Kode Unik</TableHead>
               {showAdjust && <TableHead className="text-right">Ditambah</TableHead>}
               {showAdjust && <TableHead className="text-right">Dikurangi</TableHead>}
+              {showWithdrawn && <TableHead className="text-right">Penarikan</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableState colSpan={cols} isLoading={isLoading} error={error} isEmpty={!data?.days.length} emptyText="Tidak ada data" />
             {data?.days.map((d) => (
-              <TableRow key={d.date} className={d.count || d.added || d.subtracted ? undefined : 'text-muted-foreground'}>
+              <TableRow key={d.date} className={d.count || d.added || d.subtracted || d.withdrawn ? undefined : 'text-muted-foreground'}>
                 <TableCell className="whitespace-nowrap">{dayLabel(d.date, true)}</TableCell>
                 <TableCell className="text-right">{d.count.toLocaleString('id-ID')}</TableCell>
                 <TableCell className="text-right font-medium whitespace-nowrap">{money(d.incoming)}</TableCell>
@@ -104,6 +150,7 @@ export function DailyRecapTable({
                 <TableCell className="text-right whitespace-nowrap">{money(d.unique)}</TableCell>
                 {showAdjust && <TableCell className="text-right whitespace-nowrap">{money(d.added)}</TableCell>}
                 {showAdjust && <TableCell className="text-right whitespace-nowrap text-destructive">{money(d.subtracted)}</TableCell>}
+                {showWithdrawn && <TableCell className="text-right whitespace-nowrap text-destructive">{money(d.withdrawn)}</TableCell>}
               </TableRow>
             ))}
           </TableBody>
@@ -119,6 +166,9 @@ export function DailyRecapTable({
                 {showAdjust && <TableCell className="text-right whitespace-nowrap">{formatCurrency(data.totals.added)}</TableCell>}
                 {showAdjust && (
                   <TableCell className="text-right whitespace-nowrap text-destructive">{formatCurrency(data.totals.subtracted)}</TableCell>
+                )}
+                {showWithdrawn && (
+                  <TableCell className="text-right whitespace-nowrap text-destructive">{formatCurrency(data.totals.withdrawn)}</TableCell>
                 )}
               </TableRow>
             </TableFooter>

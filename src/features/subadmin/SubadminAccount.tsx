@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { PasswordCard, ProfileCard } from '@/features/merchant/account/ProfileForms';
+import { DiscordNotificationCard } from './DiscordNotificationCard';
 
 export default function SubadminAccount() {
   const { data: me } = useMe();
@@ -37,7 +38,10 @@ export default function SubadminAccount() {
             </CardContent>
           </Card>
         </div>
-        <PasswordCard api={subadminApi} minLength={8} />
+        <div className="space-y-4">
+          <PasswordCard api={subadminApi} minLength={8} />
+          <DiscordNotificationCard />
+        </div>
       </div>
     </>
   );

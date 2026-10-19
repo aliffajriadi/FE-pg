@@ -8,6 +8,7 @@ export const BALANCE_LOG_LABEL: Record<BalanceLogType, { label: string; tone: 's
   PAYMENT: { label: 'Uang Masuk', tone: 'success' },
   ADD: { label: 'Ditambah Admin', tone: 'info' },
   SUBTRACT: { label: 'Dikurangi Admin', tone: 'warning' },
+  WITHDRAWAL: { label: 'Penarikan Merchant', tone: 'warning' },
 };
 
 export const BALANCE_LOG_TABS = [
@@ -31,6 +32,7 @@ export function BalanceLogTable({ logs, isLoading, error }: { logs: SubadminBala
         <TableState colSpan={4} isLoading={isLoading} error={error} isEmpty={!logs.length} emptyText="Belum ada riwayat saldo" />
         {logs.map((log) => {
           const { label, tone } = BALANCE_LOG_LABEL[log.type];
+          const isOut = log.type === 'SUBTRACT' || log.type === 'WITHDRAWAL';
           return (
             <TableRow key={log.id}>
               <TableCell className="whitespace-nowrap text-muted-foreground">{formatDate(log.occurredAt)}</TableCell>
@@ -38,7 +40,16 @@ export function BalanceLogTable({ logs, isLoading, error }: { logs: SubadminBala
                 <ToneBadge tone={tone}>{label}</ToneBadge>
               </TableCell>
               <TableCell className="max-w-xs">
-                {log.order ? (
+                {log.withdrawal ? (
+                  <>
+                    <p className="text-sm">
+                      Penarikan #{log.withdrawal.id} · {log.withdrawal.store.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {log.withdrawal.bankName} {log.withdrawal.bankAccount} a.n. {log.withdrawal.bankHolderName}
+                    </p>
+                  </>
+                ) : log.order ? (
                   <>
                     <p className="font-mono text-xs">{log.order.invoiceCode}</p>
                     <p className="truncate text-xs text-muted-foreground">
@@ -53,13 +64,8 @@ export function BalanceLogTable({ logs, isLoading, error }: { logs: SubadminBala
                   </>
                 )}
               </TableCell>
-              <TableCell
-                className={cn(
-                  'text-right font-medium whitespace-nowrap',
-                  log.type === 'SUBTRACT' ? 'text-destructive' : 'text-emerald-600',
-                )}
-              >
-                {log.type === 'SUBTRACT' ? '−' : '+'}
+              <TableCell className={cn('text-right font-medium whitespace-nowrap', isOut ? 'text-destructive' : 'text-emerald-600')}>
+                {isOut ? '−' : '+'}
                 {formatCurrency(log.amount)}
               </TableCell>
             </TableRow>
