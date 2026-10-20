@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Host tambahan untuk akses dev (pisahkan dengan koma), mis. domain proxy/sandbox
+  allowedDevOrigins: process.env.DEV_ORIGINS?.split(",") ?? [],
   // Kompatibilitas URL frontend lama (link pembayaran yang sudah tersebar memakai /pay.html?invoice=...)
   async redirects() {
     return [

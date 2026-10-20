@@ -93,6 +93,7 @@ export interface MypgLicense {
   id: number;
   code: string;
   durationDays: number;
+  maxAmount: number | null;
   status: MypgLicenseStatus;
   note: string | null;
   redeemedAt: string | null;
@@ -444,8 +445,10 @@ export const adminApi = {
         counts: Partial<Record<MypgLicenseStatus, number>>;
       }
     >(`/admin/mypg/licenses${toQuery({ ...params })}`),
-  generateMypgLicenses: (body: { durationDays: number; count: number; note?: string }) =>
+  generateMypgLicenses: (body: { durationDays: number; count: number; maxAmount?: number | null; note?: string }) =>
     fetchApi<ApiResponse<MypgLicense[]>>('/admin/mypg/licenses', json('POST', body)),
+  updateMypgLicense: (id: number, body: { durationDays?: number; maxAmount?: number | null; note?: string }) =>
+    fetchApi<ApiResponse<MypgLicense>>(`/admin/mypg/licenses/${id}`, json('PATCH', body)),
   revokeMypgLicense: (id: number) => fetchApi<Msg>(`/admin/mypg/licenses/${id}/revoke`, json('POST')),
   getMypgOrders: (params: ListParams & { status?: string }) =>
     fetchApi<PaginatedResponse<AdminMypgOrder>>(`/admin/mypg/orders${toQuery({ ...params })}`),

@@ -54,6 +54,7 @@ import {
 import { useLogout, useMe } from '@/features/auth/hooks';
 import { adminSupportApi } from '@/lib/api/support';
 import { merchantApi } from '@/lib/api/merchant';
+import { subadminApi } from '@/lib/api/subadmin';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
@@ -154,6 +155,15 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
     refetchInterval: 60 * 1000,
   });
 
+  // Penarikan merchant yang ditugaskan admin dan belum ditransfer sub admin
+  const { data: pendingWithdrawals } = useQuery({
+    queryKey: ['subadmin-withdrawals', 'open-count'],
+    queryFn: () => subadminApi.getWithdrawals({ limit: 1, status: 'OPEN' }),
+    select: (res) => res.openCount,
+    enabled: role === 'SUBADMIN',
+    refetchInterval: 60 * 1000,
+  });
+
   const { data: merchantTier } = useQuery({
     queryKey: ['merchant-stats'],
     queryFn: merchantApi.getStats,
@@ -171,7 +181,11 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
   if (currentPanel && currentPanel !== lastPanel) setLastPanel(currentPanel);
   const inMypg = isMerchant && (currentPanel ?? lastPanel) === 'mypg';
   const navItems = (isAdmin ? ADMIN_NAV : !isMerchant ? SUBADMIN_NAV : inMypg ? MYPG_NAV : MERCHANT_NAV).map((item) =>
-    item.href === '/admin/support' || item.href === '/subadmin/support' ? { ...item, badge: openTickets } : item,
+    item.href === '/admin/support' || item.href === '/subadmin/support'
+      ? { ...item, badge: openTickets }
+      : item.href === '/subadmin/withdrawals'
+        ? { ...item, badge: pendingWithdrawals }
+        : item,
   );
   const rootHref = isAdmin ? '/admin' : !isMerchant ? '/subadmin' : inMypg ? '/dashboard/mypg' : '/dashboard';
   // Item dengan path lebih spesifik menang (mis. /admin/mypg/licenses tidak ikut menyalakan /admin/mypg)

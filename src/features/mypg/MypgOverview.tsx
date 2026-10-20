@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock, QrCode, Smartphone, Wallet } from 'lucide-react';
-import { MYPG_PROVIDER_LABEL, mypgApi } from '@/lib/api/mypg';
-import { formatCurrency } from '@/lib/utils';
+import { AlertTriangle, CalendarClock, CheckCircle2, ChevronRight, Clock, Gauge, QrCode, Smartphone, Wallet } from 'lucide-react';
+import { MYPG_PROVIDER_LABEL, mypgApi, type MypgSummary } from '@/lib/api/mypg';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
@@ -78,6 +78,67 @@ function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Wallet; l
   );
 }
 
+function LicenseCard({ data }: { data: MypgSummary }) {
+  const { quota, licenseActive, activeUntil, daysLeft } = data;
+  const unlimited = quota.limit === null;
+  const percent = unlimited || !quota.limit ? 0 : Math.min(100, (quota.used / quota.limit) * 100);
+  const quotaTone = percent >= 100 ? 'bg-destructive' : percent >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+  const daysTone = !licenseActive ? 'text-destructive' : daysLeft <= 3 ? 'text-amber-600' : 'text-foreground';
+
+  return (
+    <Card size="sm">
+      <CardContent className="grid gap-5 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <CalendarClock className="size-3.5" /> Masa Aktif Lisensi
+          </p>
+          <p className={`text-lg font-bold sm:text-xl ${daysTone}`}>
+            {licenseActive ? `${daysLeft} hari lagi` : activeUntil ? 'Sudah berakhir' : 'Belum aktif'}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {activeUntil ? `${licenseActive ? 'Berlaku hingga' : 'Berakhir pada'} ${formatDate(activeUntil, false)}` : 'Masukkan kode lisensi di Billing'}
+          </p>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Gauge className="size-3.5" /> Kuota Transaksi
+          </p>
+          {unlimited ? (
+            <>
+              <p className="text-lg font-bold sm:text-xl">Tanpa batas</p>
+              <p className="text-xs text-muted-foreground">{formatCurrency(data.paidVolume)} total transaksi lunas</p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-bold sm:text-xl">
+                {formatCurrency(quota.remaining)} <span className="text-xs font-normal text-muted-foreground">tersisa</span>
+              </p>
+              <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(percent)} aria-valuemin={0} aria-valuemax={100}>
+                <div className={`h-full rounded-full transition-all ${quotaTone}`} style={{ width: `${percent}%` }} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(quota.used)} dari {formatCurrency(quota.limit)} terpakai ({Math.round(percent)}%)
+              </p>
+            </>
+          )}
+        </div>
+      </CardContent>
+      {(percent >= 80 || !licenseActive) && (
+        <CardContent>
+          <Link
+            href="/dashboard/mypg/billing"
+            className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm font-medium transition-colors hover:border-amber-500"
+          >
+            {!licenseActive ? 'Lisensi tidak aktif. Tambah kode lisensi' : percent >= 100 ? 'Kuota habis. Tambah kode lisensi' : 'Kuota hampir habis. Tambah kode lisensi'}
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
 export default function MypgOverview() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['mypg-summary'],
@@ -103,6 +164,8 @@ export default function MypgOverview() {
       ) : (
         <>
           <SetupChecklist licensed={data.licenseActive} hasQris={!!data.activeQris} hasDevice={data.devices.length > 0} online={onlineCount > 0} />
+
+          <LicenseCard data={data} />
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat icon={Wallet} label="Penjualan Hari Ini" value={formatCurrency(data.todayVolume)} hint={`${data.todayCount} transaksi`} />

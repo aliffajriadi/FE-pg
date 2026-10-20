@@ -5,11 +5,11 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, Copy, KeyRound } from 'lucide-react';
+import { Check, Copy, KeyRound, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { adminApi, type MypgLicense, type MypgLicenseStatus } from '@/lib/api/admin';
 import { useApiMutation } from '@/hooks/use-api-mutation';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,13 @@ const PRESETS = [
   { days: 180, label: '6 bulan' },
   { days: 365, label: '1 tahun' },
 ];
+const AMOUNT_PRESETS = [
+  { amount: 1_000_000, label: 'Rp1 jt' },
+  { amount: 5_000_000, label: 'Rp5 jt' },
+  { amount: 10_000_000, label: 'Rp10 jt' },
+  { amount: 50_000_000, label: 'Rp50 jt' },
+  { amount: null, label: 'Tanpa batas' },
+];
 const STATUS: Record<MypgLicenseStatus, { label: string; tone: 'success' | 'info' | 'danger' }> = {
   UNUSED: { label: 'Belum dipakai', tone: 'success' },
   REDEEMED: { label: 'Sudah dipakai', tone: 'info' },
@@ -41,10 +48,19 @@ const STATUS: Record<MypgLicenseStatus, { label: string; tone: 'success' | 'info
 
 const schema = z.object({
   durationDays: z.number({ error: 'Wajib diisi' }).int('Bilangan bulat').min(1, 'Minimal 1 hari').max(3650, 'Maksimal 3650 hari'),
+  maxAmount: z.preprocess(
+    (v) => (v === '' || v === null || Number.isNaN(v) ? null : v),
+    z.number({ error: 'Harus berupa angka' }).int('Bilangan bulat').min(1, 'Minimal Rp1').nullable()
+  ),
   count: z.number({ error: 'Wajib diisi' }).int('Bilangan bulat').min(1, 'Minimal 1').max(100, 'Maksimal 100'),
   note: z.string().max(200, 'Maksimal 200 karakter').optional(),
 });
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.input<typeof schema>;
+type FormOutput = z.output<typeof schema>;
+
+const editSchema = schema.pick({ durationDays: true, maxAmount: true, note: true });
+type EditInput = z.input<typeof editSchema>;
+type EditOutput = z.output<typeof editSchema>;
 
 function CopyAllButton({ codes }: { codes: string[] }) {
   const [copied, setCopied] = useState(false);
@@ -69,12 +85,13 @@ function CopyAllButton({ codes }: { codes: string[] }) {
 function GenerateDialog() {
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<MypgLicense[] | null>(null);
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { durationDays: 30, count: 1, note: '' } });
+  const form = useForm<FormValues, unknown, FormOutput>({ resolver: zodResolver(schema), defaultValues: { durationDays: 30, maxAmount: 1_000_000, count: 1, note: '' } });
   const { errors } = form.formState;
   const days = useWatch({ control: form.control, name: 'durationDays' });
+  const maxAmount = useWatch({ control: form.control, name: 'maxAmount' });
 
   const mutation = useApiMutation(
-    (data: FormValues) => adminApi.generateMypgLicenses({ ...data, note: data.note || undefined }),
+    (data: FormOutput) => adminApi.generateMypgLicenses({ ...data, note: data.note || undefined }),
     { invalidate: [KEY], onSuccess: (res) => setCreated(res.data) }
   );
 
@@ -82,7 +99,7 @@ function GenerateDialog() {
     <>
       <Button
         onClick={() => {
-          form.reset({ durationDays: 30, count: 1, note: '' });
+          form.reset({ durationDays: 30, maxAmount: 1_000_000, count: 1, note: '' });
           setCreated(null);
           setOpen(true);
         }}
@@ -95,7 +112,9 @@ function GenerateDialog() {
             <DialogTitle>{created ? `${created.length} kode lisensi dibuat` : 'Buat Kode Lisensi MyPG'}</DialogTitle>
             <DialogDescription>
               {created
-                ? `Masing-masing menambah ${created[0]?.durationDays} hari masa aktif dan hanya bisa dipakai sekali.`
+                ? `Masing-masing menambah ${created[0]?.durationDays} hari masa aktif, ${
+                    created[0]?.maxAmount ? `batas transaksi ${formatCurrency(created[0].maxAmount)}` : 'tanpa batas transaksi'
+                  }, dan hanya bisa dipakai sekali.`
                 : 'Kirim kode ke merchant. Merchant memasukkannya di menu Billing Panel MyPG.'}
             </DialogDescription>
           </DialogHeader>
@@ -134,6 +153,29 @@ function GenerateDialog() {
                 </div>
                 <Input id="lic-days" type="number" min={1} max={3650} {...form.register('durationDays', { valueAsNumber: true })} />
               </FormField>
+              <FormField
+                label="Batas Transaksi (Rp)"
+                htmlFor="lic-amount"
+                error={errors.maxAmount?.message}
+                hint="Total nominal invoice yang boleh dibuat selama lisensi. Kosongkan untuk tanpa batas."
+              >
+                <div className="flex flex-wrap gap-2 pb-1">
+                  {AMOUNT_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => form.setValue('maxAmount', p.amount, { shouldValidate: true })}
+                      className={cn(
+                        'rounded-full border px-3 py-1 text-xs font-medium transition-colors hover:bg-muted',
+                        (maxAmount ?? null) === p.amount && 'border-primary bg-primary/10 text-primary'
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <Input id="lic-amount" type="number" min={1} placeholder="Tanpa batas" {...form.register('maxAmount', { setValueAs: (v) => (v === '' || v == null ? null : Number(v)) })} />
+              </FormField>
               <FormField label="Jumlah Kode" htmlFor="lic-count" error={errors.count?.message} hint="Maksimal 100 kode sekali buat.">
                 <Input id="lic-count" type="number" min={1} max={100} {...form.register('count', { valueAsNumber: true })} />
               </FormField>
@@ -150,6 +192,71 @@ function GenerateDialog() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function EditDialog({ license }: { license: MypgLicense }) {
+  const [open, setOpen] = useState(false);
+  const used = license.status === 'REDEEMED';
+  const form = useForm<EditInput, unknown, EditOutput>({
+    resolver: zodResolver(editSchema),
+    defaultValues: { durationDays: license.durationDays, maxAmount: license.maxAmount, note: license.note ?? '' },
+  });
+  const { errors } = form.formState;
+  const mutation = useApiMutation((data: EditOutput) => adminApi.updateMypgLicense(license.id, data), {
+    invalidate: [KEY],
+    onSuccess: () => setOpen(false),
+  });
+
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="xs"
+        onClick={() => {
+          form.reset({ durationDays: license.durationDays, maxAmount: license.maxAmount, note: license.note ?? '' });
+          setOpen(true);
+        }}
+      >
+        <Pencil /> Edit
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Lisensi</DialogTitle>
+            <DialogDescription>
+              <code className="font-mono">{license.code}</code>
+              {used && ` · dipakai ${license.store?.name ?? 'toko'}. Perubahan durasi dan batas langsung diterapkan ke toko tersebut.`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
+            <FormField label="Masa Aktif (hari)" htmlFor="edit-days" error={errors.durationDays?.message}>
+              <Input id="edit-days" type="number" min={1} max={3650} {...form.register('durationDays', { valueAsNumber: true })} />
+            </FormField>
+            <FormField label="Batas Transaksi (Rp)" htmlFor="edit-amount" error={errors.maxAmount?.message} hint="Kosongkan untuk tanpa batas.">
+              <Input
+                id="edit-amount"
+                type="number"
+                min={1}
+                placeholder="Tanpa batas"
+                {...form.register('maxAmount', { setValueAs: (v) => (v === '' || v == null ? null : Number(v)) })}
+              />
+            </FormField>
+            <FormField label="Catatan" htmlFor="edit-note" error={errors.note?.message}>
+              <Input id="edit-note" {...form.register('note')} />
+            </FormField>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>
@@ -205,6 +312,7 @@ export default function AdminMypgLicenses() {
             <TableRow>
               <TableHead>Kode</TableHead>
               <TableHead>Durasi</TableHead>
+              <TableHead>Batas Transaksi</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Dipakai Oleh</TableHead>
               <TableHead>Catatan</TableHead>
@@ -213,7 +321,7 @@ export default function AdminMypgLicenses() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={7} isLoading={isLoading} error={error} isEmpty={!rows.length} emptyText="Belum ada kode lisensi" />
+            <TableState colSpan={8} isLoading={isLoading} error={error} isEmpty={!rows.length} emptyText="Belum ada kode lisensi" />
             {rows.map((l) => (
               <TableRow key={l.id}>
                 <TableCell>
@@ -223,6 +331,7 @@ export default function AdminMypgLicenses() {
                   </div>
                 </TableCell>
                 <TableCell>{l.durationDays} hari</TableCell>
+                <TableCell>{l.maxAmount ? formatCurrency(l.maxAmount) : 'Tanpa batas'}</TableCell>
                 <TableCell>
                   <ToneBadge tone={STATUS[l.status].tone}>{STATUS[l.status].label}</ToneBadge>
                 </TableCell>
@@ -247,17 +356,24 @@ export default function AdminMypgLicenses() {
                   {l.createdBy && <p className="text-xs">oleh {l.createdBy.name}</p>}
                 </TableCell>
                 <TableCell className="text-right">
-                  {l.status === 'UNUSED' && (
-                    <ConfirmAction
-                      destructive
-                      size="xs"
-                      title="Nonaktifkan kode ini?"
-                      description={`${l.code} tidak bisa ditukarkan lagi. Kode yang sudah dipakai tidak terpengaruh.`}
-                      confirmLabel="Nonaktifkan"
-                      onConfirm={() => revoke.mutateAsync(l.id)}
-                    >
-                      Nonaktifkan
-                    </ConfirmAction>
+                  {l.status !== 'REVOKED' && (
+                    <div className="flex justify-end gap-1">
+                      <EditDialog license={l} />
+                      <ConfirmAction
+                        destructive
+                        size="xs"
+                        title={l.status === 'REDEEMED' ? 'Cabut lisensi dari toko?' : 'Nonaktifkan kode ini?'}
+                        description={
+                          l.status === 'REDEEMED'
+                            ? `${l.code} dicabut dari ${l.store?.name ?? 'toko'}: masa aktif ${l.durationDays} hari dan batas transaksinya ikut dikurangi. Lisensi toko bisa langsung tidak aktif.`
+                            : `${l.code} tidak bisa ditukarkan lagi.`
+                        }
+                        confirmLabel={l.status === 'REDEEMED' ? 'Cabut' : 'Nonaktifkan'}
+                        onConfirm={() => revoke.mutateAsync(l.id)}
+                      >
+                        {l.status === 'REDEEMED' ? 'Cabut' : 'Nonaktifkan'}
+                      </ConfirmAction>
+                    </div>
                   )}
                 </TableCell>
               </TableRow>

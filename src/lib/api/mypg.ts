@@ -91,7 +91,8 @@ export interface MypgBilling {
   active: boolean;
   activeUntil: string | null;
   daysLeft: number;
-  history: { id: number; code: string; durationDays: number; redeemedAt: string; activeFrom: string; activeUntil: string }[];
+  quota: { limit: number | null; used: number; remaining: number | null };
+  history: { id: number; code: string; durationDays: number; maxAmount: number | null; redeemedAt: string; activeFrom: string; activeUntil: string }[];
 }
 
 export interface MypgSummary {
@@ -104,6 +105,8 @@ export interface MypgSummary {
   activeQris: { id: number; name: string; provider: MypgProvider } | null;
   licenseActive: boolean;
   activeUntil: string | null;
+  daysLeft: number;
+  quota: { limit: number | null; used: number; remaining: number | null };
   devices: Pick<MypgDevice, 'id' | 'name' | 'isActive' | 'isOnline' | 'lastSeenAt'>[];
   chartData: { date: string; paidCount: number; totalAmount: number }[];
 }
@@ -120,7 +123,7 @@ export const mypgApi = {
 
   getBilling: () => fetchApi<ApiResponse<MypgBilling>>(`${P}/billing`),
   redeemLicense: (code: string) =>
-    fetchApi<ApiResponse<{ code: string; durationDays: number; activeUntil: string }>>(`${P}/billing/redeem`, json('POST', { code })),
+    fetchApi<ApiResponse<{ code: string; durationDays: number; maxAmount: number | null; activeUntil: string }>>(`${P}/billing/redeem`, json('POST', { code })),
 
   getOrders: (params: { page?: number; limit?: number; search?: string; status?: string; startDate?: string; endDate?: string }) =>
     fetchApi<PaginatedResponse<MypgOrder>>(`${P}/orders${toQuery({ ...params })}`),

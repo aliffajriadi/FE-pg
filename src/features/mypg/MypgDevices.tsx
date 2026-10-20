@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronDown, Download, Eye, EyeOff, Plus, QrCode, RotateCw, Smartphone, Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Eye, EyeOff, ImageUp, Plus, QrCode, RotateCw, Smartphone, Trash2 } from 'lucide-react';
 import { API_URL } from '@/lib/api/client';
 import { MYPG_PROVIDER_LABEL, mypgApi, type MypgDevice, type MypgNotificationStatus, type MypgProvider, type MypgQris } from '@/lib/api/mypg';
 import { useApiMutation } from '@/hooks/use-api-mutation';
+import { decodeQrFromImage, inspectQris } from '@/lib/qris-image';
+import { toast } from 'sonner';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,6 +49,34 @@ function AddQrisDialog() {
     onSuccess: () => setOpen(false),
   });
 
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [reading, setReading] = useState(false);
+
+  // Baca QR dari gambar. Bila nama & aplikasi penerima berhasil dikenali, langsung disimpan.
+  async function handleImage(file: File | undefined) {
+    if (!file) return;
+    setReading(true);
+    try {
+      const qrisString = await decodeQrFromImage(file);
+      const { provider, merchantName } = inspectQris(qrisString);
+      form.setValue('qrisString', qrisString, { shouldValidate: true });
+      if (provider) form.setValue('provider', provider);
+      if (merchantName && !form.getValues('name')) form.setValue('name', merchantName);
+
+      const values = form.getValues();
+      if (provider && values.name.trim()) {
+        mutation.mutate({ name: values.name.trim(), provider, qrisString });
+      } else {
+        toast.success('QR terbaca. Lengkapi nama dan aplikasi penerima, lalu simpan.');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal membaca gambar');
+    } finally {
+      setReading(false);
+      if (fileInput.current) fileInput.current.value = '';
+    }
+  }
+
   return (
     <>
       <Button
@@ -63,10 +93,22 @@ function AddQrisDialog() {
           <DialogHeader>
             <DialogTitle>Tambah QRIS</DialogTitle>
             <DialogDescription>
-              Tempel string QRIS statis dari aplikasi penerima. Cara mendapatkannya: pindai QR toko Anda dengan aplikasi pembaca QR,
-              lalu salin teksnya (diawali 000201).
+              Unggah gambar QRIS statis toko Anda, sistem membaca dan menyimpannya otomatis. Atau tempel string QRIS (diawali
+              000201) secara manual.
             </DialogDescription>
           </DialogHeader>
+          <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={(e) => handleImage(e.target.files?.[0])} />
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto w-full flex-col gap-1 border-dashed py-5"
+            disabled={reading || mutation.isPending}
+            onClick={() => fileInput.current?.click()}
+          >
+            <ImageUp className="size-6" />
+            <span>{reading ? 'Membaca QR...' : mutation.isPending ? 'Menyimpan...' : 'Unggah Gambar QRIS'}</span>
+            <span className="text-xs font-normal text-muted-foreground">JPG, PNG, atau WEBP · maks 10 MB</span>
+          </Button>
           <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Nama" htmlFor="qris-name" error={errors.name?.message}>

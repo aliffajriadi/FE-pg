@@ -8,7 +8,7 @@ import { CalendarClock, CheckCircle2, KeyRound, XCircle } from 'lucide-react';
 import { mypgApi } from '@/lib/api/mypg';
 import { LICENSE_WARNING_DAYS } from './MypgGuard';
 import { useApiMutation } from '@/hooks/use-api-mutation';
-import { formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -52,8 +52,19 @@ function StatusCard() {
               ? `${data.active ? 'Berlaku hingga' : 'Berakhir pada'} ${formatDate(data.activeUntil)}`
               : 'Masukkan kode lisensi untuk mulai menerima pembayaran MyPG.'}
           </p>
+          {data.quota.limit !== null && (
+            <p className="text-sm text-muted-foreground">
+              Kuota transaksi: {formatCurrency(data.quota.used)} / {formatCurrency(data.quota.limit)} terpakai (sisa{' '}
+              {formatCurrency(data.quota.remaining)})
+            </p>
+          )}
         </div>
       </CardContent>
+      {data.active && data.quota.remaining === 0 && (
+        <p className="mx-4 mb-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 sm:mx-6">
+          Batas transaksi lisensi sudah habis. Invoice MyPG baru ditolak sampai Anda memasukkan kode lisensi baru.
+        </p>
+      )}
       {!data.active && (
         <p className="mx-4 mb-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6">
           Selama lisensi tidak aktif, invoice MyPG baru (API & panel) ditolak. Sandbox tetap bisa dipakai, dan invoice yang sudah
@@ -114,6 +125,7 @@ function HistoryCard() {
           <TableRow>
             <TableHead>Kode</TableHead>
             <TableHead>Durasi</TableHead>
+            <TableHead>Batas Transaksi</TableHead>
             <TableHead>Ditukarkan</TableHead>
             <TableHead>Masa Aktif</TableHead>
           </TableRow>
@@ -121,13 +133,13 @@ function HistoryCard() {
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={4}>
+              <TableCell colSpan={5}>
                 <Skeleton className="h-8" />
               </TableCell>
             </TableRow>
           ) : !data?.length ? (
             <TableRow>
-              <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                 Belum ada lisensi yang ditukarkan
               </TableCell>
             </TableRow>
@@ -136,6 +148,7 @@ function HistoryCard() {
               <TableRow key={l.id}>
                 <TableCell className="font-mono text-xs">{l.code}</TableCell>
                 <TableCell>{l.durationDays} hari</TableCell>
+                <TableCell>{l.maxAmount ? formatCurrency(l.maxAmount) : "Tanpa batas"}</TableCell>
                 <TableCell className="text-sm whitespace-nowrap text-muted-foreground">{formatDate(l.redeemedAt)}</TableCell>
                 <TableCell className="text-sm whitespace-nowrap">
                   {formatDate(l.activeFrom, false)} – {formatDate(l.activeUntil, false)}
