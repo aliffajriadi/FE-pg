@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowDownCircle, ArrowLeft, CalendarCheck, Coins, Minus, Plus, Wallet } from 'lucide-react';
+import { ArrowDownCircle, ArrowLeft, CalendarCheck, Coins, Eye, Minus, Plus, Wallet } from 'lucide-react';
 import { adminApi, type SubadminBalanceAdjustment } from '@/lib/api/admin';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { formatCurrency } from '@/lib/utils';
@@ -110,7 +110,7 @@ export default function SubadminDetail({ id }: { id: number }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           label="Saldo Dipegang"
           icon={Wallet}
@@ -122,6 +122,12 @@ export default function SubadminDetail({ id }: { id: number }) {
           icon={Coins}
           value={formatCurrency(subadmin?.income ?? 0)}
           hint="Fee + kode unik + biaya penarikan"
+        />
+        <StatCard
+          label="Pendapatan di Sub Admin"
+          icon={Eye}
+          value={data ? formatCurrency(data.income) : '-'}
+          hint="Yang dilihat sub admin: fee + kode unik"
         />
         <StatCard
           label="Masuk Hari Ini"

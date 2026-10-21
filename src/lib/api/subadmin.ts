@@ -97,6 +97,8 @@ export interface PaymentBreakdown {
 export interface SubadminBalanceSummary {
   /** Uang yang dipegang: total masuk + ditambah admin - dikurangi admin - penarikan merchant yang ditransfer. */
   balance: number;
+  /** Pendapatan platform yang dipegang (fee + kode unik), dikurangi yang sudah disetor. */
+  income: number;
   today: { amount: number; count: number; breakdown: PaymentBreakdown };
   allTime: {
     incoming: number;

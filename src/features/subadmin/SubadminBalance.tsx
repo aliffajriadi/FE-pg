@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowDownCircle, CalendarCheck, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowDownCircle, CalendarCheck, Coins, TrendingUp, Wallet } from 'lucide-react';
 import { subadminApi } from '@/lib/api/subadmin';
 import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,8 +53,14 @@ export default function SubadminBalance() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard label="Saldo Dipegang" icon={Wallet} value={formatCurrency(data.balance)} hint="Gabungan semua QRIS Anda" />
+            <StatCard
+              label="Saldo Pendapatan"
+              icon={Coins}
+              value={formatCurrency(data.income)}
+              hint="Pendapatan platform yang Anda pegang, belum disetor"
+            />
             <StatCard
               label="Masuk Hari Ini"
               icon={CalendarCheck}
