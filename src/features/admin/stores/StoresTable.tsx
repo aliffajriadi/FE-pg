@@ -17,6 +17,7 @@ import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { GATEWAY_SHORT_LABEL, isManualGateway } from '@/lib/gateway';
 import { DailyLimitDialog, FeeDialog, HoldHoursDialog, PaymentGatewayDialog } from './StoreDialogs';
 import { BalanceDialog } from './StoreBalanceDialog';
+import { WithdrawNowDialog } from './StoreWithdrawNowDialog';
 
 function formatFee(store: AdminStore) {
   return store.feeType === 'FIXED' ? formatCurrency(store.feeValue) : `${store.feeValue}%`;
@@ -168,6 +169,7 @@ export default function StoresTable() {
                 <TableCell>
                   <div className="flex justify-end gap-2">
                     <BalanceDialog store={store} />
+                    <WithdrawNowDialog store={store} />
                     <PaymentGatewayDialog store={store} />
                     <FeeDialog store={store} mode="fee" />
                     <FeeDialog store={store} mode="wd" />

@@ -281,6 +281,15 @@ export interface AdminIntegrationDetail {
   recentDeliveries: AdminIntegrationDelivery[];
 }
 
+/** Data dialog "Tarik Sekarang": nominal default = maxAmount (saldo tersedia, dibatasi maks. per transaksi). */
+export interface StoreWithdrawNowPreview {
+  availableBalance: number;
+  maxAmount: number;
+  minAmount: number;
+  /** Rekening tujuan auto penarikan; null bila belum ada yang disetujui. */
+  bankAccount: BankAccount | null;
+}
+
 export interface StoreBalance {
   availableBalance: number;
   pendingBalance: number;
@@ -424,6 +433,8 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/payment-gateway`, json('PATCH', body)),
   updateStoreHoldHours: (id: number, holdHours: number) => fetchApi<Msg>(`/admin/stores/${id}/hold-hours`, json('PATCH', { holdHours })),
   updateStoreAutoWd: (id: number, excluded: boolean) => fetchApi<Msg>(`/admin/stores/${id}/auto-wd`, json('PATCH', { excluded })),
+  getStoreWithdrawNowPreview: (id: number) => fetchApi<ApiResponse<StoreWithdrawNowPreview>>(`/admin/stores/${id}/auto-wd/preview`),
+  runStoreWithdrawNow: (id: number, amount?: number) => fetchApi<Msg>(`/admin/stores/${id}/auto-wd/run`, json('POST', { amount })),
   getProjectRequests: (status?: string) => fetchApi<ApiResponse<AdminProjectRequest[]>>(`/admin/project-requests${toQuery({ status })}`),
   approveProjectRequest: (id: number, note?: string) => fetchApi<Msg>(`/admin/project-requests/${id}/approve`, json('PATCH', { note })),
   rejectProjectRequest: (id: number, note: string) => fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
