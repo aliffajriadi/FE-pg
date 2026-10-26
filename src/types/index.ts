@@ -111,6 +111,8 @@ export interface Withdrawal {
   adminNote: string | null;
   adminPhotoUrl: string | null;
   isAuto?: boolean;
+  /** true = admin sudah menugaskan ke sub admin, tidak bisa dibatalkan merchant */
+  isAssigned?: boolean;
   createdAt: string;
 }
 

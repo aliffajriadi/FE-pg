@@ -105,6 +105,8 @@ export interface MypgLicense {
 }
 
 export type AdminMypgOrder = MypgOrder & {
+  customerContact?: string | null;
+  netAmount?: number;
   store: { id: number; name: string };
 };
 
@@ -461,9 +463,9 @@ export const adminApi = {
   updateMypgLicense: (id: number, body: { durationDays?: number; maxAmount?: number | null; note?: string }) =>
     fetchApi<ApiResponse<MypgLicense>>(`/admin/mypg/licenses/${id}`, json('PATCH', body)),
   revokeMypgLicense: (id: number) => fetchApi<Msg>(`/admin/mypg/licenses/${id}/revoke`, json('POST')),
-  getMypgOrders: (params: ListParams & { status?: string }) =>
+  getMypgOrders: (params: ListParams & { status?: string; storeId?: number }) =>
     fetchApi<PaginatedResponse<AdminMypgOrder>>(`/admin/mypg/orders${toQuery({ ...params })}`),
-  getMypgNotifications: (params: { page?: number; status?: string }) =>
+  getMypgNotifications: (params: { page?: number; status?: string; search?: string; storeId?: number }) =>
     fetchApi<PaginatedResponse<MypgNotification>>(`/admin/mypg/notifications${toQuery({ ...params })}`),
   updateStoreManualInvoice: (id: number, enabled: boolean) =>
     fetchApi<Msg>(`/admin/stores/${id}/manual-invoice`, json('PATCH', { enabled })),

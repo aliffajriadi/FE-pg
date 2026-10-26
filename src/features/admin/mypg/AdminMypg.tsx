@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { adminApi } from '@/lib/api/admin';
+import { adminApi, type AdminMypgOrder } from '@/lib/api/admin';
 import { MYPG_PROVIDER_LABEL, type MypgNotificationStatus } from '@/lib/api/mypg';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { Eye, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -16,8 +19,71 @@ import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { StatusTabs } from '@/components/shared/StatusTabs';
 
 type Tab = 'merchants' | 'orders' | 'notifications';
+type StoreFilter = { id: number; name: string } | null;
 
-function MerchantsTab() {
+/** Chip penanda tampilan sedang dibatasi ke satu merchant. */
+function StoreFilterChip({ store, onClear }: { store: NonNullable<StoreFilter>; onClear: () => void }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="text-muted-foreground">Menampilkan khusus:</span>
+      <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 py-0.5 pr-1 pl-3 font-medium text-primary">
+        {store.name}
+        <button type="button" onClick={onClear} aria-label="Hapus filter merchant" className="rounded-full p-1 hover:bg-primary/20">
+          <X className="size-3.5" />
+        </button>
+      </span>
+    </div>
+  );
+}
+
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <span className="min-w-0 text-right font-medium break-words">{children}</span>
+    </div>
+  );
+}
+
+function OrderDetailDialog({ order }: { order: AdminMypgOrder }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="xs" onClick={() => setOpen(true)}>
+        <Eye /> Detail
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detail Transaksi MyPG</DialogTitle>
+          </DialogHeader>
+          <div className="divide-y">
+            <DetailRow label="Invoice">
+              <span className="font-mono text-xs">{order.invoiceCode}</span>
+            </DetailRow>
+            <DetailRow label="Toko">{order.store.name}</DetailRow>
+            <DetailRow label="Status">
+              <StatusBadge status={order.paymentStatus} />
+            </DetailRow>
+            <DetailRow label="Produk">{order.productName}</DetailRow>
+            {order.externalId && <DetailRow label="ID Eksternal">{order.externalId}</DetailRow>}
+            {order.customerName && <DetailRow label="Pelanggan">{order.customerName}</DetailRow>}
+            {order.customerContact && <DetailRow label="Kontak">{order.customerContact}</DetailRow>}
+            <DetailRow label="Nominal">{formatCurrency(order.amount)}</DetailRow>
+            <DetailRow label="Kode Unik">{order.uniqueCode}</DetailRow>
+            <DetailRow label="Total Dibayar">{formatCurrency(order.totalAmount)}</DetailRow>
+            {order.paidVia && <DetailRow label="Dibayar Via">{order.paidVia}</DetailRow>}
+            <DetailRow label="Dibuat">{formatDate(order.createdAt)}</DetailRow>
+            {order.paidAt && <DetailRow label="Dibayar">{formatDate(order.paidAt)}</DetailRow>}
+            {order.expiredAt && <DetailRow label="Kedaluwarsa">{formatDate(order.expiredAt)}</DetailRow>}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function MerchantsTab({ onView }: { onView: (tab: 'orders' | 'notifications', store: { id: number; name: string }) => void }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin-mypg-merchants'],
     queryFn: adminApi.getMypgMerchants,
@@ -37,11 +103,12 @@ function MerchantsTab() {
             <TableHead>Notifikasi Terakhir</TableHead>
             <TableHead className="text-right">Hari Ini</TableHead>
             <TableHead className="text-right">Total Sukses</TableHead>
+            <TableHead className="text-right">Lihat</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableState
-            colSpan={7}
+            colSpan={8}
             isLoading={isLoading}
             error={error}
             isEmpty={!rows.length}
@@ -89,6 +156,16 @@ function MerchantsTab() {
                 <p className="font-medium">{formatCurrency(m.paidVolume)}</p>
                 <p className="text-xs text-muted-foreground">{m.paidCount} trx</p>
               </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  <Button variant="outline" size="xs" onClick={() => onView('orders', { id: m.id, name: m.name })}>
+                    Transaksi
+                  </Button>
+                  <Button variant="outline" size="xs" onClick={() => onView('notifications', { id: m.id, name: m.name })}>
+                    Log
+                  </Button>
+                </div>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -105,18 +182,19 @@ const ORDER_TABS = [
   { value: 'CANCELLED', label: 'Dibatalkan' },
 ];
 
-function OrdersTab() {
+function OrdersTab({ store, onClearStore }: { store: StoreFilter; onClearStore: () => void }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-mypg-orders', { page, search, status }],
-    queryFn: () => adminApi.getMypgOrders({ page, search, status }),
+    queryKey: ['admin-mypg-orders', { page, search, status, storeId: store?.id }],
+    queryFn: () => adminApi.getMypgOrders({ page, search, status, storeId: store?.id }),
     placeholderData: keepPreviousData,
   });
   const rows = data?.data ?? [];
   return (
     <>
+      {store && <StoreFilterChip store={store} onClear={onClearStore} />}
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <StatusTabs
           tabs={ORDER_TABS}
@@ -127,7 +205,7 @@ function OrdersTab() {
           }}
         />
         <SearchForm
-          placeholder="Cari invoice, produk, toko..."
+          placeholder="Cari invoice, produk, pelanggan, toko..."
           onSearch={(v) => {
             setSearch(v);
             setPage(1);
@@ -143,10 +221,11 @@ function OrdersTab() {
               <TableHead className="text-right">Total</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Dibuat</TableHead>
+              <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={5} isLoading={isLoading} error={error} isEmpty={!rows.length} emptyText="Belum ada transaksi MyPG" />
+            <TableState colSpan={6} isLoading={isLoading} error={error} isEmpty={!rows.length} emptyText="Belum ada transaksi MyPG" />
             {rows.map((o) => (
               <TableRow key={o.id}>
                 <TableCell>
@@ -160,6 +239,9 @@ function OrdersTab() {
                   {o.paidVia && <p className="mt-0.5 text-xs text-muted-foreground">via {o.paidVia}</p>}
                 </TableCell>
                 <TableCell className="text-sm whitespace-nowrap text-muted-foreground">{formatDate(o.createdAt)}</TableCell>
+                <TableCell className="text-right">
+                  <OrderDetailDialog order={o} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -184,25 +266,36 @@ const NOTIF_TONE: Record<MypgNotificationStatus, 'success' | 'warning' | 'danger
   IGNORED: 'info',
 };
 
-function NotificationsTab() {
+function NotificationsTab({ store, onClearStore }: { store: StoreFilter; onClearStore: () => void }) {
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin-mypg-notifications', { page, status }],
-    queryFn: () => adminApi.getMypgNotifications({ page, status }),
+    queryKey: ['admin-mypg-notifications', { page, status, search, storeId: store?.id }],
+    queryFn: () => adminApi.getMypgNotifications({ page, status, search, storeId: store?.id }),
     placeholderData: keepPreviousData,
   });
   const rows = data?.data ?? [];
   return (
     <>
-      <StatusTabs
-        tabs={NOTIF_TABS}
-        value={status}
-        onChange={(v) => {
-          setStatus(v);
-          setPage(1);
-        }}
-      />
+      {store && <StoreFilterChip store={store} onClear={onClearStore} />}
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <StatusTabs
+          tabs={NOTIF_TABS}
+          value={status}
+          onChange={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+        />
+        <SearchForm
+          placeholder="Cari isi notifikasi, toko..."
+          onSearch={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+        />
+      </div>
       <Card className="py-0">
         <Table>
           <TableHeader>
@@ -239,6 +332,7 @@ function NotificationsTab() {
 
 export default function AdminMypg() {
   const [tab, setTab] = useState<Tab>('merchants');
+  const [store, setStore] = useState<StoreFilter>(null);
   return (
     <>
       <PageHeader
@@ -252,7 +346,18 @@ export default function AdminMypg() {
           <TabsTrigger value="notifications">Log Notifikasi</TabsTrigger>
         </TabsList>
       </Tabs>
-      {tab === 'merchants' ? <MerchantsTab /> : tab === 'orders' ? <OrdersTab /> : <NotificationsTab />}
+      {tab === 'merchants' ? (
+        <MerchantsTab
+          onView={(next, s) => {
+            setStore(s);
+            setTab(next);
+          }}
+        />
+      ) : tab === 'orders' ? (
+        <OrdersTab store={store} onClearStore={() => setStore(null)} />
+      ) : (
+        <NotificationsTab store={store} onClearStore={() => setStore(null)} />
+      )}
     </>
   );
 }

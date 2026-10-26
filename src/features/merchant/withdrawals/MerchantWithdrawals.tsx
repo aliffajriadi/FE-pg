@@ -247,7 +247,7 @@ function WithdrawalHistory() {
                   <p className="text-xs text-muted-foreground">{formatDate(w.createdAt)}</p>
                   <div className="flex gap-2">
                     <DetailDialog withdrawal={w} />
-                    {w.status === 'PENDING' && !w.isAuto && (
+                    {w.status === 'PENDING' && !w.isAuto && !w.isAssigned && (
                       <ConfirmAction
                         destructive
                         title="Batalkan penarikan?"
@@ -257,6 +257,9 @@ function WithdrawalHistory() {
                       >
                         Batalkan
                       </ConfirmAction>
+                    )}
+                    {w.status === 'PENDING' && w.isAssigned && (
+                      <span className="self-center text-xs text-muted-foreground">Sedang diproses, tidak bisa dibatalkan</span>
                     )}
                   </div>
                 </div>

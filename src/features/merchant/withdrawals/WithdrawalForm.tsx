@@ -135,7 +135,7 @@ export function WithdrawalForm({ dashboard, bankAccounts }: { dashboard: Dashboa
 
             <p className="flex gap-2 text-xs text-muted-foreground">
               <Info className="size-4 shrink-0" />
-              Saldo langsung dipotong saat pengajuan dibuat. Penarikan manual masih bisa dibatalkan selama berstatus Pending.
+              Saldo langsung dipotong saat pengajuan dibuat. Penarikan manual masih bisa dibatalkan selama berstatus Pending dan belum diproses admin.
             </p>
 
             <Button type="submit" className="w-full" size="lg" disabled={!canWithdraw || mutation.isPending}>
