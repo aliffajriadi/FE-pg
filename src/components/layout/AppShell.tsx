@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
+  AppWindow,
   Banknote,
   FolderPlus,
   Code2,
@@ -84,6 +85,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: '/admin/mypg', label: 'MyPG Merchant', icon: Smartphone },
   { href: '/admin/mypg/licenses', label: 'Lisensi MyPG', icon: KeyRound },
   { href: '/admin/mypg/app', label: 'Aplikasi MyPG', icon: Download },
+  { href: '/admin/external-apps', label: 'Aplikasi Eksternal', icon: AppWindow },
   { href: '/admin/project-requests', label: 'Pengajuan Proyek', icon: FolderPlus },
   { href: '/admin/settings', label: 'Pengaturan Sistem', icon: Settings },
   { href: '/admin/guides', label: 'Tata Cara', icon: BookMarked },

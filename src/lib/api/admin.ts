@@ -88,6 +88,33 @@ export interface MypgAppConfig {
   announcementTone: 'info' | 'warning' | 'success';
 }
 
+export interface ExternalApp {
+  id: number;
+  slug: string;
+  name: string;
+  packageName: string | null;
+  isActive: boolean;
+  latestVersionCode: number;
+  latestVersionName: string;
+  minVersionCode: number;
+  downloadUrl: string;
+  changelog: string;
+  announcement: string;
+  announcementTone: 'info' | 'warning' | 'success';
+  announcementStartsAt: string | null;
+  announcementEndsAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  /** Jumlah pengecekan dalam 7 hari terakhir (hanya di daftar) */
+  recentChecks?: number;
+}
+export type ExternalAppInput = Partial<Omit<ExternalApp, 'id' | 'createdAt' | 'updatedAt' | 'recentChecks'>>;
+export interface ExternalAppStats {
+  days: number;
+  total: number;
+  versions: { code: number; checks: number }[];
+}
+
 export type MypgLicenseStatus = 'UNUSED' | 'REDEEMED' | 'REVOKED';
 export interface MypgLicense {
   id: number;
@@ -452,6 +479,11 @@ export const adminApi = {
       }>
     >('/admin/mypg/app-config'),
   updateMypgAppConfig: (body: Partial<MypgAppConfig>) => fetchApi<ApiResponse<MypgAppConfig>>('/admin/mypg/app-config', json('PUT', body)),
+  getExternalApps: () => fetchApi<ApiResponse<ExternalApp[]>>('/admin/external-apps'),
+  getExternalApp: (id: number) => fetchApi<ApiResponse<{ app: ExternalApp; stats: ExternalAppStats }>>(`/admin/external-apps/${id}`),
+  createExternalApp: (body: ExternalAppInput) => fetchApi<ApiResponse<ExternalApp>>('/admin/external-apps', json('POST', body)),
+  updateExternalApp: (id: number, body: ExternalAppInput) => fetchApi<ApiResponse<ExternalApp>>(`/admin/external-apps/${id}`, json('PUT', body)),
+  deleteExternalApp: (id: number) => fetchApi<Msg>(`/admin/external-apps/${id}`, json('DELETE')),
   getMypgLicenses: (params: ListParams & { status?: MypgLicenseStatus }) =>
     fetchApi<
       PaginatedResponse<MypgLicense> & {
