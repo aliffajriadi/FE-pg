@@ -94,9 +94,8 @@ export interface ExternalApp {
   name: string;
   packageName: string | null;
   isActive: boolean;
-  latestVersionCode: number;
-  latestVersionName: string;
-  minVersionCode: number;
+  latestVersion: string;
+  minVersion: string;
   downloadUrl: string;
   changelog: string;
   announcement: string;
@@ -112,7 +111,7 @@ export type ExternalAppInput = Partial<Omit<ExternalApp, 'id' | 'createdAt' | 'u
 export interface ExternalAppStats {
   days: number;
   total: number;
-  versions: { code: number; checks: number }[];
+  versions: { version: string; checks: number }[];
 }
 
 export type MypgLicenseStatus = 'UNUSED' | 'REDEEMED' | 'REVOKED';

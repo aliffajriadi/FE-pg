@@ -58,8 +58,8 @@ export default function AdminExternalApps() {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{a.latestVersionCode ? `${a.latestVersionName || '-'} (kode ${a.latestVersionCode})` : <span className="text-muted-foreground">-</span>}</TableCell>
-                <TableCell>{a.minVersionCode ? `Kode ${a.minVersionCode}` : <span className="text-muted-foreground">-</span>}</TableCell>
+                <TableCell>{a.latestVersion || <span className="text-muted-foreground">-</span>}</TableCell>
+                <TableCell>{a.minVersion || <span className="text-muted-foreground">-</span>}</TableCell>
                 <TableCell className="max-w-56">
                   {a.announcement ? (
                     <p className="truncate text-sm" title={a.announcement}>

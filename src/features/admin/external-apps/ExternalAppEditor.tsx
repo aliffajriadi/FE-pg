@@ -21,7 +21,7 @@ import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { ToneBadge } from '@/components/shared/StatusBadge';
 import { ConfirmAction } from '@/components/shared/ConfirmAction';
 import { CopyField } from '@/components/shared/CopyField';
-import { EMPTY_VALUES, EXTERNAL_APPS_KEY, schema, toFormValues, toPayload, type FormValues } from './shared';
+import { compareVersions, EMPTY_VALUES, EXTERNAL_APPS_KEY, schema, toFormValues, toPayload, type FormValues } from './shared';
 
 const TONE_OPTIONS = [
   { value: 'info', label: 'Info (biru)' },
@@ -43,8 +43,8 @@ function BackLink() {
   );
 }
 
-function VersionStats({ stats, latest, min }: { stats: ExternalAppStats | undefined; latest: number; min: number }) {
-  const status = (c: number) => (min > 0 && c < min ? 'required' : latest > 0 && c < latest ? 'optional' : 'none');
+function VersionStats({ stats, latest, min }: { stats: ExternalAppStats | undefined; latest: string; min: string }) {
+  const status = (v: string) => (min && compareVersions(v, min) < 0 ? 'required' : latest && compareVersions(v, latest) < 0 ? 'optional' : 'none');
   return (
     <Card>
       <CardHeader>
@@ -56,10 +56,10 @@ function VersionStats({ stats, latest, min }: { stats: ExternalAppStats | undefi
           {stats.versions.length ? (
             <ul className="divide-y rounded-lg border">
               {stats.versions.map((v) => {
-                const s = status(v.code);
+                const s = status(v.version);
                 return (
-                  <li key={v.code} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className="flex-1 font-medium">Kode {v.code}</span>
+                  <li key={v.version} className="flex items-center gap-2 px-3 py-2 text-sm">
+                    <span className="flex-1 font-medium">Versi {v.version}</span>
                     <span className="text-xs text-muted-foreground">{v.checks.toLocaleString('id-ID')}x</span>
                     <ToneBadge tone={s === 'required' ? 'danger' : s === 'optional' ? 'warning' : 'success'}>
                       {s === 'required' ? 'Wajib update' : s === 'optional' ? 'Update tersedia' : 'Terbaru'}
@@ -84,7 +84,7 @@ function EditorForm({ app, stats }: { app: ExternalApp | null; stats?: ExternalA
   const { errors, isDirty } = form.formState;
   const [slug, latest, min, announcement, tone] = useWatch({
     control: form.control,
-    name: ['slug', 'latestVersionCode', 'minVersionCode', 'announcement', 'announcementTone'],
+    name: ['slug', 'latestVersion', 'minVersion', 'announcement', 'announcementTone'],
   });
 
   const save = useApiMutation(
@@ -102,7 +102,7 @@ function EditorForm({ app, stats }: { app: ExternalApp | null; stats?: ExternalA
     onSuccess: () => router.replace('/admin/external-apps'),
   });
 
-  const checkUrl = `${API_URL}/apps/${slug || '<slug>'}/check?versionCode=<kode versi aplikasi>`;
+  const checkUrl = `${API_URL}/apps/${slug || '<slug>'}/check?version=<versi aplikasi, mis. 1.3.4>`;
   const ToneIcon = TONE_STYLE[tone].icon;
 
   return (
@@ -138,26 +138,23 @@ function EditorForm({ app, stats }: { app: ExternalApp | null; stats?: ExternalA
             <CardHeader>
               <CardTitle>Versi & Update</CardTitle>
               <CardDescription>
-                Kode versi adalah angka build Android (versionCode). Aplikasi dengan kode di bawah &ldquo;minimum&rdquo; wajib update, di bawah &ldquo;terbaru&rdquo; mendapat
-                tawaran update yang bisa dilewati. Isi 0 untuk mematikan.
+                Tulis versi seperti 1.3.4. Aplikasi dengan versi di bawah &ldquo;minimum&rdquo; wajib update, di bawah &ldquo;terbaru&rdquo; mendapat
+                tawaran update yang bisa dilewati. Kosongkan untuk mematikan.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-3">
-              <FormField label="Kode Versi Terbaru" htmlFor="app-latest" error={errors.latestVersionCode?.message} hint="Update opsional">
-                <Input id="app-latest" type="number" min={0} {...form.register('latestVersionCode', { valueAsNumber: true })} />
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <FormField label="Versi Terbaru" htmlFor="app-latest" error={errors.latestVersion?.message} hint="Update opsional">
+                <Input id="app-latest" placeholder="1.3.4" {...form.register('latestVersion')} />
               </FormField>
-              <FormField label="Nama Versi Terbaru" htmlFor="app-latest-name" error={errors.latestVersionName?.message} hint="Ditampilkan ke pengguna, mis. 1.2.0">
-                <Input id="app-latest-name" placeholder="1.2.0" {...form.register('latestVersionName')} />
+              <FormField label="Versi Minimum" htmlFor="app-min" error={errors.minVersion?.message} hint="Update wajib">
+                <Input id="app-min" placeholder="1.2.0" {...form.register('minVersion')} />
               </FormField>
-              <FormField label="Kode Versi Minimum" htmlFor="app-min" error={errors.minVersionCode?.message} hint="Update wajib">
-                <Input id="app-min" type="number" min={0} {...form.register('minVersionCode', { valueAsNumber: true })} />
-              </FormField>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <FormField label="Link Unduh APK" htmlFor="app-url" error={errors.downloadUrl?.message} hint="Link https langsung ke file APK, mis. GitHub Release atau Google Drive.">
                   <Input id="app-url" type="url" placeholder="https://github.com/.../kasir-1.2.0.apk" {...form.register('downloadUrl')} />
                 </FormField>
               </div>
-              <div className="md:col-span-3">
+              <div className="md:col-span-2">
                 <FormField label="Catatan Perubahan" htmlFor="app-changelog" error={errors.changelog?.message} hint="Ditampilkan di dialog update.">
                   <Textarea id="app-changelog" rows={4} placeholder={'- Perbaikan bug\n- Tampilan baru'} {...form.register('changelog')} />
                 </FormField>
