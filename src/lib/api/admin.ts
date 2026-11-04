@@ -341,6 +341,8 @@ export interface AdminSettings {
   minInvoiceAmount: SystemSetting;
   autoWdEnabled: SystemSetting;
   autoWdMaxHours: SystemSetting;
+  /** value = id sub admin tujuan, kosong = mati */
+  autoAssignSubadmin: SystemSetting;
   merchantTiers: { basis: TierBasis; tiers: MerchantTier[] };
   manualQrisList: ManualQris[];
 }

@@ -68,6 +68,7 @@ const settingsSchema = z.object({
     .min(1, 'Minimal Rp1')
     .max(20_000_000, 'Maksimal Rp20.000.000'),
   autoWdEnabledValue: z.boolean(),
+  autoAssignSubadminValue: z.string(),
   autoWdMaxHoursValue: z
     .number({ error: 'Wajib diisi' })
     .int('Harus bilangan bulat')
@@ -108,6 +109,7 @@ function toFormValues(s: AdminSettings): SettingsForm {
     bannerValue: s.banner?.value || '',
     minInvoiceAmountValue: Number(s.minInvoiceAmount?.value ?? 500),
     autoWdEnabledValue: s.autoWdEnabled?.value === 'true',
+    autoAssignSubadminValue: s.autoAssignSubadmin?.isActive ? s.autoAssignSubadmin.value : '',
     autoWdMaxHoursValue: Number(s.autoWdMaxHours?.value ?? 72),
     merchantTiersValue: s.merchantTiers ?? {
       basis: 'COUNT',
@@ -141,6 +143,12 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
     control: form.control,
     name: ['merchantTiersValue.basis', 'merchantTiersValue.tiers'],
   });
+
+  const { data: subadmins } = useQuery({ queryKey: ['admin-subadmins'], queryFn: adminApi.getSubadmins });
+  const subadminOptions = [
+    { value: '', label: 'Tidak diteruskan (ditangani admin)' },
+    ...(subadmins?.data ?? []).filter((u) => u.isActive).map((u) => ({ value: String(u.id), label: u.name })),
+  ];
 
   const runAutoWd = useApiMutation(() => adminApi.runAutoWithdrawals(), {
     invalidate: [['admin-withdrawals']],
@@ -385,6 +393,27 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           <Button type="button" variant="outline" onClick={() => runAutoWd.mutate()} disabled={runAutoWd.isPending}>
             {runAutoWd.isPending ? <Loader2 className="animate-spin" /> : null} Jalankan Pengecekan Sekarang
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Penarikan ke Sub Admin</CardTitle>
+          <CardDescription>
+            Setiap penarikan baru (manual maupun otomatis) langsung diteruskan ke sub admin pilihan, lengkap dengan notifikasi Discord-nya.
+            Jika saldo yang dipegang sub admin kurang dari nominal transfer, penarikan tetap di admin untuk ditugaskan manual.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FormField label="Sub Admin Tujuan" htmlFor="auto-assign-subadmin" hint="Kosongkan pilihan untuk mematikan.">
+            <Controller
+              control={form.control}
+              name="autoAssignSubadminValue"
+              render={({ field }) => (
+                <SimpleSelect id="auto-assign-subadmin" value={field.value} onValueChange={field.onChange} options={subadminOptions} />
+              )}
+            />
+          </FormField>
         </CardContent>
       </Card>
 
