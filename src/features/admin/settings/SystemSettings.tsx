@@ -567,7 +567,7 @@ function BackupCard() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `backup_payment_${new Date().toISOString().slice(0, 10)}.db`;
+      a.download = `backup_payment_${new Date().toISOString().slice(0, 10)}.sql`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
@@ -581,11 +581,11 @@ function BackupCard() {
     <Card>
       <CardHeader>
         <CardTitle>Backup Database</CardTitle>
-        <CardDescription>Unduh seluruh database SQLite sistem.</CardDescription>
+        <CardDescription>Unduh seluruh database MySQL sistem.</CardDescription>
       </CardHeader>
       <CardContent>
         <Button variant="outline" onClick={download} disabled={loading}>
-          {loading ? <Loader2 className="animate-spin" /> : <Download />} Unduh Database (SQLite)
+          {loading ? <Loader2 className="animate-spin" /> : <Download />} Unduh Database (SQL)
         </Button>
       </CardContent>
     </Card>
