@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { addMonths, format } from 'date-fns';
 import { toast } from 'sonner';
 import { downloadExcel, fetchAllPages, RUPIAH_FORMAT, type ExcelColumn } from '@/lib/export-excel';
 import { statusLabel } from '@/lib/status';
@@ -34,18 +34,34 @@ function fileName(prefix: string, range: DateRange) {
   return `${prefix}_${period}.xlsx`;
 }
 
+/** Pesan error bila rentang tanggal export tidak diisi lengkap atau melebihi `maxMonths`, null bila valid. */
+export function exportRangeError({ from, to }: DateRange, maxMonths: number) {
+  if (!from || !to) return `Pilih tanggal awal dan akhir dulu (maksimal ${maxMonths} bulan)`;
+  const limit = addMonths(new Date(`${from}T00:00:00`), maxMonths);
+  return new Date(`${to}T00:00:00`) > limit ? `Rentang export maksimal ${maxMonths} bulan` : null;
+}
+
 /** Ambil seluruh transaksi sesuai filter aktif lalu unduh sebagai .xlsx, dengan progres di toast. */
 export async function exportTransactions<T extends Row>({
   fetchPage,
   includeStore,
   range,
   prefix,
+  maxMonths,
 }: {
   fetchPage: (page: number, limit: number) => Promise<PaginatedResponse<T>>;
   includeStore: boolean;
   range: DateRange;
   prefix: string;
+  /** Wajib filter tanggal dengan rentang maksimal sekian bulan; kosong = tanpa batas */
+  maxMonths?: number;
 }) {
+  const rangeError = maxMonths ? exportRangeError(range, maxMonths) : null;
+  if (rangeError) {
+    toast.error(rangeError);
+    return;
+  }
+
   const toastId = toast.loading('Menyiapkan data...');
   try {
     const rows = await fetchAllPages(fetchPage, (loaded, total) =>

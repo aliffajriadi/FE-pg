@@ -91,6 +91,7 @@ export default function OrdersTable() {
                 includeStore: false,
                 range,
                 prefix: 'transaksi',
+                maxMonths: 3,
               })
             }
           />
