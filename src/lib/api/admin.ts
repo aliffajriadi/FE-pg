@@ -232,6 +232,11 @@ export interface IntegrationCount {
   active: number;
 }
 
+export interface GrowtopiaScript {
+  script: string;
+  updatedAt: string | null;
+}
+
 export interface AdminIntegrationRow {
   id: number;
   name: string;
@@ -506,6 +511,10 @@ export const adminApi = {
     fetchApi<ApiResponse<StoreBalance> & { pagination: Pagination }>(`/admin/stores/${id}/balance${toQuery({ ...params })}`),
   adjustStoreBalance: (id: number, body: { type: 'CREDIT' | 'DEBIT'; amount: number; description?: string }) =>
     fetchApi<Msg>(`/admin/stores/${id}/balance-adjustment`, json('POST', body)),
+
+  // Template script Lua Growtopia (satu untuk semua, diambil app lain)
+  getGrowtopiaScript: () => fetchApi<ApiResponse<GrowtopiaScript>>('/admin/growtopia-script'),
+  saveGrowtopiaScript: (script: string) => fetchApi<ApiResponse<GrowtopiaScript>>('/admin/growtopia-script', json('PUT', { script })),
 
   // Integrasi API merchant (read-only)
   getIntegrations: (params: ListParams) => fetchApi<PaginatedResponse<AdminIntegrationRow>>(`/admin/integrations${toQuery({ ...params })}`),
