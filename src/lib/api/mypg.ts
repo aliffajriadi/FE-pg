@@ -38,6 +38,24 @@ export interface MypgDevice {
   createdAt: string;
 }
 
+export interface MypgShopeeStatus {
+  available: boolean;
+  hasDeviceReport: boolean;
+  status: 'DISCONNECTED' | 'CONNECTED' | 'NEEDS_LOGIN';
+  merchantName: string | null;
+  shopeeStoreName: string | null;
+  lastPollAt: string | null;
+  lastError: string | null;
+  hasShopeeQris: boolean;
+}
+
+export interface MypgShopeeLoginStep {
+  status?: 'merchant-selection-required' | 'store-selection-required' | 'complete';
+  login_id?: string;
+  merchants?: { id: string; name: string }[];
+  stores?: { id: string; name: string }[];
+}
+
 export interface MypgOrder {
   id: number;
   invoiceCode: string;
@@ -92,7 +110,15 @@ export interface MypgBilling {
   activeUntil: string | null;
   daysLeft: number;
   quota: { limit: number | null; used: number; remaining: number | null };
-  history: { id: number; code: string; durationDays: number; maxAmount: number | null; redeemedAt: string; activeFrom: string; activeUntil: string }[];
+  history: {
+    id: number;
+    code: string;
+    durationDays: number;
+    maxAmount: number | null;
+    redeemedAt: string;
+    activeFrom: string;
+    activeUntil: string;
+  }[];
 }
 
 export interface MypgSummary {
@@ -123,7 +149,10 @@ export const mypgApi = {
 
   getBilling: () => fetchApi<ApiResponse<MypgBilling>>(`${P}/billing`),
   redeemLicense: (code: string) =>
-    fetchApi<ApiResponse<{ code: string; durationDays: number; maxAmount: number | null; activeUntil: string }>>(`${P}/billing/redeem`, json('POST', { code })),
+    fetchApi<ApiResponse<{ code: string; durationDays: number; maxAmount: number | null; activeUntil: string }>>(
+      `${P}/billing/redeem`,
+      json('POST', { code }),
+    ),
 
   getOrders: (params: { page?: number; limit?: number; search?: string; status?: string; startDate?: string; endDate?: string }) =>
     fetchApi<PaginatedResponse<MypgOrder>>(`${P}/orders${toQuery({ ...params })}`),
@@ -145,6 +174,18 @@ export const mypgApi = {
 
   getAppInfo: () =>
     fetchApi<ApiResponse<{ latestVersionName: string | null; latestVersionCode: number; downloadUrl: string | null }>>(`${P}/app-info`),
+  getShopee: () => fetchApi<ApiResponse<MypgShopeeStatus>>(`${P}/shopee`),
+  saveShopeeDevice: (report: string) => fetchApi<Msg>(`${P}/shopee/device`, json('POST', { report })),
+  shopeeOtp: (body: { phone: string; password?: string }) =>
+    fetchApi<ApiResponse<{ login_id: string }>>(`${P}/shopee/otp`, json('POST', body)),
+  shopeeVerify: (body: { login_id: string; otp: string }) =>
+    fetchApi<ApiResponse<MypgShopeeLoginStep>>(`${P}/shopee/verify`, json('POST', body)),
+  shopeeMerchant: (body: { login_id: string; merchant_id: string }) =>
+    fetchApi<ApiResponse<MypgShopeeLoginStep>>(`${P}/shopee/merchant`, json('POST', body)),
+  shopeeStore: (body: { login_id: string; store_id: string }) =>
+    fetchApi<ApiResponse<MypgShopeeLoginStep>>(`${P}/shopee/store`, json('POST', body)),
+  disconnectShopee: () => fetchApi<Msg>(`${P}/shopee`, json('DELETE')),
+
   getDevices: () => fetchApi<ApiResponse<MypgDevice[]>>(`${P}/devices`),
   createDevice: (body: { name: string }) => fetchApi<ApiResponse<MypgDevice>>(`${P}/devices`, json('POST', body)),
   updateDevice: (id: number, body: { name?: string; isActive?: boolean }) =>
@@ -165,8 +206,7 @@ export const mypgApi = {
   getWebhooks: () => fetchApi<ApiResponse<Webhook[]>>(`${P}/webhooks`),
   createWebhook: (body: { name: string; url: string; projectId?: number; mode?: IntegrationMode }) =>
     fetchApi<ApiResponse<Webhook>>(`${P}/webhooks`, json('POST', body)),
-  updateWebhook: (id: number, body: { isActive?: boolean }) =>
-    fetchApi<ApiResponse<Webhook>>(`${P}/webhooks/${id}`, json('PATCH', body)),
+  updateWebhook: (id: number, body: { isActive?: boolean }) => fetchApi<ApiResponse<Webhook>>(`${P}/webhooks/${id}`, json('PATCH', body)),
   deleteWebhook: (id: number) => fetchApi<Msg>(`${P}/webhooks/${id}`, json('DELETE')),
   regenerateWebhookSecret: (id: number) => fetchApi<ApiResponse<Webhook>>(`${P}/webhooks/${id}/regenerate-secret`, json('POST')),
   testWebhook: (id: number) => fetchApi<Msg>(`${P}/webhooks/${id}/test`, json('POST')),

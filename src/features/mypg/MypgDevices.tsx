@@ -27,6 +27,7 @@ import { ToneBadge } from '@/components/shared/StatusBadge';
 import { Pagination } from '@/components/shared/Pagination';
 import { RefreshButton } from '@/components/shared/RefreshButton';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ShopeeAutoSection } from './MypgShopee';
 
 const NOTIFY_URL = `${API_URL}/mypg/notify`;
 
@@ -488,6 +489,7 @@ export default function MypgDevices() {
   return (
     <>
       <PageHeader title="Perangkat & QRIS" description="Atur QRIS penerima dan HP yang meneruskan notifikasi pembayaran." />
+      <ShopeeAutoSection />
       <ConnectGuide />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <QrisSection />

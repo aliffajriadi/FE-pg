@@ -12,8 +12,7 @@ const ENDPOINT_NOTES: Record<string, Partial<Endpoint>> = {
   'create-invoice': {
     warning:
       'Lisensi MyPG harus aktif. Jika masa aktif habis, endpoint ini mengembalikan HTTP 402. Invoice sandbox (mp_test_) tetap bisa dibuat tanpa lisensi.',
-    note:
-      'totalAmount bisa lebih besar beberapa rupiah dari amount (kode unik, maksimal +999, bisa diatur di Pengaturan MyPG) agar setiap invoice yang menunggu punya total berbeda dan pembayaran dikenali otomatis. Tampilkan totalAmount ke pelanggan, atau arahkan ke paymentUrl. Field payment_number berisi QRIS dinamis dari QRIS milik Anda.',
+    note: 'totalAmount bisa lebih besar beberapa rupiah dari amount (kode unik, maksimal +999, bisa diatur di Pengaturan MyPG) agar setiap invoice yang menunggu punya total berbeda dan pembayaran dikenali otomatis. Tampilkan totalAmount ke pelanggan, atau arahkan ke paymentUrl. Field payment_number berisi QRIS dinamis dari QRIS milik Anda. Masa berlaku invoice bisa berbeda-beda (diatur di Pengaturan MyPG, dan dipersingkat jadi 5 menit bila deteksi Shopee otomatis aktif): pakai expiresIn (sisa detik) dan serverTime untuk hitung-mundur dan jadwal pengecekan di sisi klien, jangan mengasumsikan durasi tetap.',
   },
   'sync-invoice': {
     summary: 'Ambil status terbaru invoice',
@@ -24,7 +23,12 @@ const ENDPOINT_NOTES: Record<string, Partial<Endpoint>> = {
 export const MYPG_ENDPOINTS: Endpoint[] = ENDPOINTS.map((ep) => ({
   ...ep,
   path: toMypg(ep.path),
-  response: toMypg(ep.response).replace('"payment_number": "00020101...",', '"payment_number": "00020101...",\n    "payment": "mypg",'),
+  response: toMypg(ep.response)
+    .replace('"payment_number": "00020101...",', '"payment_number": "00020101...",\n    "payment": "mypg",')
+    .replace(
+      '"expiredAt": "2025-07-31T23:00:00.000Z"',
+      '"expiredAt": "2025-07-31T23:00:00.000Z",\n    "expiresIn": 300,\n    "serverTime": "2025-07-31T22:55:00.000Z"',
+    ),
   ...(ep.request && { request: toMypg(ep.request) }),
   ...(ep.body && {
     body: ep.body.map((f) => (f.field === 'method' ? { ...f, desc: 'Metode pembayaran. Saat ini hanya qris' } : f)),
