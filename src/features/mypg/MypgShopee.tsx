@@ -213,7 +213,16 @@ export function ShopeeAutoSection() {
           </>
         ) : connecting || data.status === 'NEEDS_LOGIN' ? (
           <>
-            {data.lastError && <p className="text-xs text-amber-600">{data.lastError}</p>}
+            {data.status === 'NEEDS_LOGIN' && (
+              <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+                <p className="font-medium text-amber-700 dark:text-amber-400">Sambungan Shopee terputus</p>
+                <p className="mt-1 text-muted-foreground">
+                  Sesi login Shopee sudah habis, jadi pembayaran ShopeePay tidak terdeteksi otomatis. Login ulang di bawah untuk
+                  menyambungkan lagi. HP dengan APK tetap bisa dipakai sebagai cadangan.
+                </p>
+              </div>
+            )}
+            {data.lastError && <p className="text-xs text-muted-foreground">Detail: {data.lastError}</p>}
             <Connect hasDeviceReport={data.hasDeviceReport} onDone={() => setConnecting(false)} />
           </>
         ) : (

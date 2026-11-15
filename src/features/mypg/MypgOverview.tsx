@@ -197,6 +197,12 @@ export default function MypgOverview() {
     refetchInterval: 30_000,
   });
 
+  const { data: shopee } = useQuery({
+    queryKey: ['mypg-shopee'],
+    queryFn: mypgApi.getShopee,
+    select: (res) => res.data,
+    refetchInterval: 30_000,
+  });
   const onlineCount = data?.devices.filter((d) => d.isActive && d.isOnline).length ?? 0;
 
   return (
@@ -222,6 +228,21 @@ export default function MypgOverview() {
             hasDevice={data.devices.length > 0}
             online={onlineCount > 0}
           />
+
+          {shopee?.status === 'NEEDS_LOGIN' && (
+            <Link
+              href="/dashboard/mypg/devices"
+              className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm transition-colors hover:border-amber-500"
+            >
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+                <span>
+                  <b>Sambungan Shopee terputus.</b> Pembayaran ShopeePay tidak terdeteksi otomatis. Login ulang di Perangkat &amp; QRIS.
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </Link>
+          )}
 
           <LicenseCard data={data} />
 
