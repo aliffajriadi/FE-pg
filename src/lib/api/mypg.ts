@@ -115,11 +115,15 @@ export interface MypgBilling {
     code: string;
     durationDays: number;
     maxAmount: number | null;
+    redeemMode: MypgRedeemMode | null;
     redeemedAt: string;
     activeFrom: string;
     activeUntil: string;
   }[];
 }
+
+/** Ditukar saat lisensi masih aktif: DAYS = tambah hari saja, QUOTA = tambah kuota saja */
+export type MypgRedeemMode = 'DAYS' | 'QUOTA';
 
 export interface MypgSummary {
   paidCount: number;
@@ -148,11 +152,10 @@ export const mypgApi = {
   getSummary: () => fetchApi<ApiResponse<MypgSummary>>(`${P}/summary`),
 
   getBilling: () => fetchApi<ApiResponse<MypgBilling>>(`${P}/billing`),
-  redeemLicense: (code: string) =>
-    fetchApi<ApiResponse<{ code: string; durationDays: number; maxAmount: number | null; activeUntil: string }>>(
-      `${P}/billing/redeem`,
-      json('POST', { code }),
-    ),
+  redeemLicense: (code: string, mode?: MypgRedeemMode) =>
+    fetchApi<
+      ApiResponse<{ code: string; durationDays: number; maxAmount: number | null; mode: MypgRedeemMode | null; activeUntil: string }>
+    >(`${P}/billing/redeem`, json('POST', { code, mode })),
 
   getOrders: (params: { page?: number; limit?: number; search?: string; status?: string; startDate?: string; endDate?: string }) =>
     fetchApi<PaginatedResponse<MypgOrder>>(`${P}/orders${toQuery({ ...params })}`),
