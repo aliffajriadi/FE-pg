@@ -3,7 +3,19 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronRight, Clock, Gauge, QrCode, Smartphone, Wallet } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Gauge,
+  GraduationCap,
+  QrCode,
+  Smartphone,
+  Wallet,
+} from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
 import { MYPG_PROVIDER_LABEL, mypgApi, type MypgSummary } from '@/lib/api/mypg';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +26,17 @@ import { CreateMypgOrderDialog } from './CreateMypgOrderDialog';
 
 const chartConfig = { totalAmount: { label: 'Penjualan', color: 'var(--chart-5)' } } satisfies ChartConfig;
 
-function SetupChecklist({ licensed, hasQris, hasDevice, online }: { licensed: boolean; hasQris: boolean; hasDevice: boolean; online: boolean }) {
+function SetupChecklist({
+  licensed,
+  hasQris,
+  hasDevice,
+  online,
+}: {
+  licensed: boolean;
+  hasQris: boolean;
+  hasDevice: boolean;
+  online: boolean;
+}) {
   const items = [
     { done: licensed, label: 'Aktifkan lisensi MyPG', href: '/dashboard/mypg/billing' },
     { done: hasQris, label: 'Tambahkan QRIS milik Anda', href: '/dashboard/mypg/devices' },
@@ -54,7 +76,7 @@ function SetupChecklist({ licensed, hasQris, hasDevice, online }: { licensed: bo
                   <ChevronRight className="size-4 text-muted-foreground" />
                 </Link>
               </li>
-            )
+            ),
           )}
         </ul>
       </CardContent>
@@ -62,7 +84,19 @@ function SetupChecklist({ licensed, hasQris, hasDevice, online }: { licensed: bo
   );
 }
 
-function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Wallet; label: string; value: string; hint: string; tone?: 'good' | 'bad' }) {
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: string;
+  hint: string;
+  tone?: 'good' | 'bad';
+}) {
   return (
     <Card size="sm">
       <CardContent className="space-y-1.5">
@@ -72,7 +106,11 @@ function Stat({ icon: Icon, label, value, hint, tone }: { icon: typeof Wallet; l
         <p className="truncate text-lg font-bold sm:text-xl" title={value}>
           {value}
         </p>
-        <p className={`truncate text-xs ${tone === 'bad' ? 'text-destructive' : tone === 'good' ? 'text-emerald-600' : 'text-muted-foreground'}`}>{hint}</p>
+        <p
+          className={`truncate text-xs ${tone === 'bad' ? 'text-destructive' : tone === 'good' ? 'text-emerald-600' : 'text-muted-foreground'}`}
+        >
+          {hint}
+        </p>
       </CardContent>
     </Card>
   );
@@ -96,7 +134,9 @@ function LicenseCard({ data }: { data: MypgSummary }) {
             {licenseActive ? `${daysLeft} hari lagi` : activeUntil ? 'Sudah berakhir' : 'Belum aktif'}
           </p>
           <p className="text-xs text-muted-foreground">
-            {activeUntil ? `${licenseActive ? 'Berlaku hingga' : 'Berakhir pada'} ${formatDate(activeUntil, false)}` : 'Masukkan kode lisensi di Billing'}
+            {activeUntil
+              ? `${licenseActive ? 'Berlaku hingga' : 'Berakhir pada'} ${formatDate(activeUntil, false)}`
+              : 'Masukkan kode lisensi di Billing'}
           </p>
         </div>
 
@@ -114,7 +154,13 @@ function LicenseCard({ data }: { data: MypgSummary }) {
               <p className="text-lg font-bold sm:text-xl">
                 {formatCurrency(quota.remaining)} <span className="text-xs font-normal text-muted-foreground">tersisa</span>
               </p>
-              <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={Math.round(percent)} aria-valuemin={0} aria-valuemax={100}>
+              <div
+                className="h-2 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={Math.round(percent)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div className={`h-full rounded-full transition-all ${quotaTone}`} style={{ width: `${percent}%` }} />
               </div>
               <p className="text-xs text-muted-foreground">
@@ -130,7 +176,11 @@ function LicenseCard({ data }: { data: MypgSummary }) {
             href="/dashboard/mypg/billing"
             className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm font-medium transition-colors hover:border-amber-500"
           >
-            {!licenseActive ? 'Lisensi tidak aktif. Tambah kode lisensi' : percent >= 100 ? 'Kuota habis. Tambah kode lisensi' : 'Kuota hampir habis. Tambah kode lisensi'}
+            {!licenseActive
+              ? 'Lisensi tidak aktif. Tambah kode lisensi'
+              : percent >= 100
+                ? 'Kuota habis. Tambah kode lisensi'
+                : 'Kuota hampir habis. Tambah kode lisensi'}
             <ChevronRight className="size-4 text-muted-foreground" />
           </Link>
         </CardContent>
@@ -152,6 +202,9 @@ export default function MypgOverview() {
   return (
     <>
       <PageHeader title="Beranda MyPG" description="Pembayaran masuk langsung ke QRIS Anda sendiri, terpisah dari saldo dashboard live.">
+        <Link href="/dashboard/mypg/panduan" className={buttonVariants({ variant: 'outline' })}>
+          <GraduationCap /> Panduan Pemula
+        </Link>
         <CreateMypgOrderDialog />
       </PageHeader>
 
@@ -163,7 +216,12 @@ export default function MypgOverview() {
         </Card>
       ) : (
         <>
-          <SetupChecklist licensed={data.licenseActive} hasQris={!!data.activeQris} hasDevice={data.devices.length > 0} online={onlineCount > 0} />
+          <SetupChecklist
+            licensed={data.licenseActive}
+            hasQris={!!data.activeQris}
+            hasDevice={data.devices.length > 0}
+            online={onlineCount > 0}
+          />
 
           <LicenseCard data={data} />
 
@@ -212,11 +270,19 @@ export default function MypgOverview() {
                       />
                     }
                   />
-                  <Area dataKey="totalAmount" type="monotone" stroke="var(--color-totalAmount)" fill="var(--color-totalAmount)" fillOpacity={0.15} strokeWidth={2} />
+                  <Area
+                    dataKey="totalAmount"
+                    type="monotone"
+                    stroke="var(--color-totalAmount)"
+                    fill="var(--color-totalAmount)"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
                 </AreaChart>
               </ChartContainer>
               <p className="mt-3 text-sm text-muted-foreground">
-                Total sepanjang waktu: <strong>{formatCurrency(data.paidVolume)}</strong> dari {data.paidCount.toLocaleString('id-ID')} transaksi.
+                Total sepanjang waktu: <strong>{formatCurrency(data.paidVolume)}</strong> dari {data.paidCount.toLocaleString('id-ID')}{' '}
+                transaksi.
               </p>
             </CardContent>
           </Card>

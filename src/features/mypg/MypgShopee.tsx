@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { mypgApi, type MypgShopeeLoginStep } from '@/lib/api/mypg';
 import { useApiMutation } from '@/hooks/use-api-mutation';
@@ -168,7 +169,10 @@ export function ShopeeAutoSection() {
         <CardTitle>Shopee Otomatis (tanpa HP)</CardTitle>
         <CardDescription>
           Server memantau transaksi ShopeePay akun Anda, jadi pembayaran terdeteksi tanpa HP. Berlaku untuk QRIS ShopeePay; invoice
-          kedaluwarsa dalam 5 menit.
+          kedaluwarsa dalam 5 menit.{' '}
+          <Link href="/dashboard/mypg/panduan#shopee" className="font-medium text-primary underline">
+            Lihat panduan lengkap
+          </Link>
         </CardDescription>
         {data && (
           <CardAction>

@@ -11,6 +11,7 @@ import {
   Code2,
   BookOpen,
   BookMarked,
+  GraduationCap,
   LifeBuoy,
   Wallet,
   ClipboardList,
@@ -124,6 +125,7 @@ const SECTION_LABEL: Record<UserRole, string> = { ADMIN: 'Administrasi', MERCHAN
 // Panel MyPG: hanya untuk toko dengan akses MyPG, terpisah dari menu live
 const MYPG_NAV: NavItem[] = [
   { href: '/dashboard/mypg', label: 'Beranda', icon: LayoutDashboard, group: 'MyPG' },
+  { href: '/dashboard/mypg/panduan', label: 'Panduan Pemula', icon: GraduationCap },
   { href: '/dashboard/mypg/orders', label: 'Transaksi', icon: FileText },
   { href: '/dashboard/mypg/devices', label: 'Perangkat & QRIS', icon: Smartphone, group: 'Pengaturan' },
   { href: '/dashboard/mypg/settings', label: 'Pengaturan MyPG', icon: Settings },
