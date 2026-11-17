@@ -57,7 +57,7 @@ export type AdminUser = User & {
 };
 export type AdminStore = Store & {
   balance: number;
-  user: User;
+  user: Pick<User, 'id' | 'name' | 'email'>;
   /** Batas efektif per hari (0 = tanpa batas) dan jumlah transaksi hari ini. */
   effectiveDailyTxLimit: number;
   dailyTxUsed: number;
