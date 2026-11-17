@@ -479,6 +479,8 @@ export const adminApi = {
     fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
   updateStoreLive: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/live`, json('PATCH', { enabled })),
   updateStoreMypg: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
+  updateAllStoresAccess: (field: 'live' | 'mypg', enabled: boolean) =>
+    fetchApi<Msg>(`/admin/stores-access/${field}`, json('PATCH', { enabled })),
   getMypgMerchants: () => fetchApi<ApiResponse<AdminMypgMerchant[]>>('/admin/mypg/merchants'),
   getMypgAppConfig: () =>
     fetchApi<

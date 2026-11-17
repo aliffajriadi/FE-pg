@@ -66,6 +66,28 @@ export default function StoresTable() {
     successMessage: 'Akses MyPG disimpan',
   });
 
+  const bulkAccess = useApiMutation(
+    ({ field, enabled }: { field: 'live' | 'mypg'; enabled: boolean }) => adminApi.updateAllStoresAccess(field, enabled),
+    options,
+  );
+  const bulkButtons = (field: 'live' | 'mypg', label: string) => (
+    <div className="mt-1 flex gap-1">
+      {[true, false].map((enabled) => (
+        <ConfirmAction
+          key={String(enabled)}
+          size="xs"
+          destructive={!enabled}
+          title={`${enabled ? 'Aktifkan' : 'Matikan'} akses ${label} semua toko?`}
+          description="Berlaku untuk semua toko, bukan hanya halaman ini."
+          confirmLabel={enabled ? 'Aktifkan Semua' : 'Matikan Semua'}
+          onConfirm={() => bulkAccess.mutateAsync({ field, enabled })}
+        >
+          {enabled ? 'On' : 'Off'}
+        </ConfirmAction>
+      ))}
+    </div>
+  );
+
   const stores = data?.data ?? [];
 
   const { data: qrisList } = useQuery({
@@ -100,8 +122,14 @@ export default function StoresTable() {
               <TableHead>Transaksi Hari Ini</TableHead>
               <TableHead>Auto WD</TableHead>
               <TableHead>Invoice Manual</TableHead>
-              <TableHead>Live</TableHead>
-              <TableHead>MyPG</TableHead>
+              <TableHead>
+                Live
+                {bulkButtons('live', 'Live')}
+              </TableHead>
+              <TableHead>
+                MyPG
+                {bulkButtons('mypg', 'MyPG')}
+              </TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
