@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   AppWindow,
@@ -138,6 +138,7 @@ const MYPG_NAV: NavItem[] = [
 
 export function AppShell({ role, children }: { role: UserRole; children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
@@ -179,13 +180,19 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
   });
 
   const hasMypg = isMerchant && !!me?.store?.mypgEnabled;
+  // Live dimatikan admin: merchant hanya memakai panel MyPG (akun & bantuan tetap bisa dibuka)
+  const liveOff = hasMypg && me?.store?.liveEnabled === false;
+  const liveOnlyPath = pathname.startsWith('/dashboard') && !/^\/dashboard\/(mypg|account|support)/.test(pathname);
+  useEffect(() => {
+    if (liveOff && liveOnlyPath) router.replace('/dashboard/mypg');
+  }, [liveOff, liveOnlyPath, router]);
   // Halaman profil dipakai bersama Live & MyPG: sidebar tetap menampilkan panel terakhir yang dibuka
   const accountHref = isMerchant ? '/dashboard/account' : '/subadmin/account';
   const onAccountPage = !isAdmin && pathname.startsWith(accountHref);
   const [lastPanel, setLastPanel] = useState<'live' | 'mypg'>('live');
   const currentPanel = onAccountPage ? null : pathname.startsWith('/dashboard/mypg') ? 'mypg' : 'live';
   if (currentPanel && currentPanel !== lastPanel) setLastPanel(currentPanel);
-  const inMypg = isMerchant && (currentPanel ?? lastPanel) === 'mypg';
+  const inMypg = isMerchant && (liveOff || (currentPanel ?? lastPanel) === 'mypg');
   const navItems = (isAdmin ? ADMIN_NAV : !isMerchant ? SUBADMIN_NAV : inMypg ? MYPG_NAV : MERCHANT_NAV).map((item) =>
     item.href === '/admin/support' || item.href === '/subadmin/support'
       ? { ...item, badge: openTickets }
@@ -227,7 +234,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {(hasMypg || inMypg) && (
+        {(hasMypg || inMypg) && !liveOff && (
           <div className="mb-2 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-medium" role="tablist" aria-label="Pilih panel">
             {[
               { href: '/dashboard', label: 'Live', icon: Store, active: !inMypg },

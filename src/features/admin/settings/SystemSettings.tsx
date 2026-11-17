@@ -69,6 +69,8 @@ const settingsSchema = z.object({
     .max(20_000_000, 'Maksimal Rp20.000.000'),
   autoWdEnabledValue: z.boolean(),
   autoAssignSubadminValue: z.string(),
+  defaultLiveEnabledValue: z.boolean(),
+  defaultMypgEnabledValue: z.boolean(),
   autoWdMaxHoursValue: z
     .number({ error: 'Wajib diisi' })
     .int('Harus bilangan bulat')
@@ -110,6 +112,8 @@ function toFormValues(s: AdminSettings): SettingsForm {
     minInvoiceAmountValue: Number(s.minInvoiceAmount?.value ?? 500),
     autoWdEnabledValue: s.autoWdEnabled?.value === 'true',
     autoAssignSubadminValue: s.autoAssignSubadmin?.isActive ? s.autoAssignSubadmin.value : '',
+    defaultLiveEnabledValue: s.newStoreAccess?.liveEnabled ?? false,
+    defaultMypgEnabledValue: s.newStoreAccess?.mypgEnabled ?? true,
     autoWdMaxHoursValue: Number(s.autoWdMaxHours?.value ?? 72),
     merchantTiersValue: s.merchantTiers ?? {
       basis: 'COUNT',
@@ -393,6 +397,38 @@ function SettingsFormView({ settings }: { settings: AdminSettings }) {
           <Button type="button" variant="outline" onClick={() => runAutoWd.mutate()} disabled={runAutoWd.isPending}>
             {runAutoWd.isPending ? <Loader2 className="animate-spin" /> : null} Jalankan Pengecekan Sekarang
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Akses Merchant Baru</CardTitle>
+          <CardDescription>
+            Akses awal toko saat akun merchant dibuat. Hanya berlaku untuk akun baru; toko yang sudah ada diatur lewat kolom Live dan MyPG di
+            Manajemen Toko. Live mati berarti merchant tidak bisa membuat invoice live baru (invoice yang sudah dibuat tetap bisa dibayar dan
+            saldo tetap bisa ditarik).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {([
+            ['defaultLiveEnabledValue', 'Live aktif', 'Invoice lewat gateway sistem (Pakasir / QRIS manual).'],
+            ['defaultMypgEnabledValue', 'MyPG aktif', 'Payment gateway pribadi dengan QRIS milik merchant sendiri.'],
+          ] as const).map(([name, title, hint]) => (
+            <Controller
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <Label className="flex items-center gap-3 rounded-lg border p-3">
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  <span>
+                    <span className="block font-medium">{title}</span>
+                    <span className="text-xs font-normal text-muted-foreground">{hint}</span>
+                  </span>
+                </Label>
+              )}
+            />
+          ))}
         </CardContent>
       </Card>
 

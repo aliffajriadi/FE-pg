@@ -68,6 +68,8 @@ export interface Store {
   manualInvoiceEnabled: boolean;
   /** null = ikut default sistem, 0 = tanpa batas. */
   dailyTxLimit?: number | null;
+  /** Akses sistem Live; false = invoice live baru diblokir admin. */
+  liveEnabled?: boolean;
   /** Akses Panel MyPG (QRIS milik merchant sendiri). */
   mypgEnabled?: boolean;
   mypgActiveUntil?: string | null;

@@ -56,6 +56,11 @@ export default function StoresTable() {
     { ...options, successMessage: 'Pengaturan invoice manual disimpan' },
   );
 
+  const toggleLive = useApiMutation(({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreLive(id, enabled), {
+    ...options,
+    successMessage: 'Akses Live disimpan',
+  });
+
   const toggleMypg = useApiMutation(({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreMypg(id, enabled), {
     ...options,
     successMessage: 'Akses MyPG disimpan',
@@ -95,6 +100,7 @@ export default function StoresTable() {
               <TableHead>Transaksi Hari Ini</TableHead>
               <TableHead>Auto WD</TableHead>
               <TableHead>Invoice Manual</TableHead>
+              <TableHead>Live</TableHead>
               <TableHead>MyPG</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
@@ -156,6 +162,14 @@ export default function StoresTable() {
                     }
                     disabled={toggleManualInvoice.isPending}
                     aria-label={`Invoice manual ${store.name}`}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={store.liveEnabled !== false}
+                    onCheckedChange={(checked) => toggleLive.mutate({ id: store.id, enabled: checked })}
+                    disabled={toggleLive.isPending}
+                    aria-label={`Akses Live ${store.name}`}
                   />
                 </TableCell>
                 <TableCell>

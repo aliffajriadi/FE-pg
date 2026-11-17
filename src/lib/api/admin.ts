@@ -348,6 +348,8 @@ export interface AdminSettings {
   autoWdMaxHours: SystemSetting;
   /** value = id sub admin tujuan, kosong = mati */
   autoAssignSubadmin: SystemSetting;
+  /** Akses awal toko baru */
+  newStoreAccess: { liveEnabled: boolean; mypgEnabled: boolean };
   merchantTiers: { basis: TierBasis; tiers: MerchantTier[] };
   manualQrisList: ManualQris[];
 }
@@ -475,6 +477,7 @@ export const adminApi = {
   rejectProjectRequest: (id: number, note: string) => fetchApi<Msg>(`/admin/project-requests/${id}/reject`, json('PATCH', { note })),
   updateStoreDailyTxLimit: (id: number, dailyTxLimit: number | null) =>
     fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
+  updateStoreLive: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/live`, json('PATCH', { enabled })),
   updateStoreMypg: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
   getMypgMerchants: () => fetchApi<ApiResponse<AdminMypgMerchant[]>>('/admin/mypg/merchants'),
   getMypgAppConfig: () =>
