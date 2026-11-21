@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/shared/PageHeader';
 import { FormField } from '@/components/shared/FormField';
 import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { ToneBadge } from '@/components/shared/StatusBadge';
+import { NotifPatternsCard } from './NotifPatternsCard';
 
 const code = (label: string) => z.number({ error: 'Wajib diisi' }).int('Bilangan bulat').min(0, `${label} minimal 0`).max(1_000_000);
 
@@ -160,7 +161,7 @@ export default function AdminMypgApp() {
   const { data, isLoading, error } = useQuery({ queryKey: ['admin-mypg-app-config'], queryFn: adminApi.getMypgAppConfig, select: (res) => res.data });
   return (
     <>
-      <PageHeader title="Aplikasi MyPG" description="Atur versi, pemberitahuan update, dan pengumuman di aplikasi Android Autoko MyPG." />
+      <PageHeader title="Aplikasi MyPG" description="Atur versi, pemberitahuan update, pengumuman, dan pola notifikasi uang masuk aplikasi Android Autoko MyPG." />
       {isLoading ? (
         <Skeleton className="h-96 rounded-xl" />
       ) : error || !data ? (
@@ -168,6 +169,9 @@ export default function AdminMypgApp() {
       ) : (
         <ConfigForm config={data.config} versions={data.versions} />
       )}
+      <div className="mt-6">
+        <NotifPatternsCard />
+      </div>
     </>
   );
 }

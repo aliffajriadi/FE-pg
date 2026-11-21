@@ -78,6 +78,9 @@ export interface AdminMypgMerchant {
   todayCount: number;
   todayVolume: number;
 }
+/** Template notifikasi uang masuk per provider: {nominal} = angka, * = teks bebas. */
+export type MypgNotifPatterns = Record<MypgProvider, string[]>;
+
 export interface MypgAppConfig {
   latestVersionCode: number;
   latestVersionName: string;
@@ -490,6 +493,12 @@ export const adminApi = {
       }>
     >('/admin/mypg/app-config'),
   updateMypgAppConfig: (body: Partial<MypgAppConfig>) => fetchApi<ApiResponse<MypgAppConfig>>('/admin/mypg/app-config', json('PUT', body)),
+  getMypgNotifPatterns: () =>
+    fetchApi<ApiResponse<{ patterns: MypgNotifPatterns; defaults: MypgNotifPatterns }>>('/admin/mypg/notif-patterns'),
+  updateMypgNotifPatterns: (patterns: MypgNotifPatterns) =>
+    fetchApi<ApiResponse<MypgNotifPatterns>>('/admin/mypg/notif-patterns', json('PUT', { patterns })),
+  testMypgNotifPattern: (body: { text: string; app?: string; patterns: MypgNotifPatterns }) =>
+    fetchApi<ApiResponse<{ provider: MypgProvider; amount: number } | null>>('/admin/mypg/notif-patterns/test', json('POST', body)),
   getExternalApps: () => fetchApi<ApiResponse<ExternalApp[]>>('/admin/external-apps'),
   getExternalApp: (id: number) => fetchApi<ApiResponse<{ app: ExternalApp; stats: ExternalAppStats }>>(`/admin/external-apps/${id}`),
   createExternalApp: (body: ExternalAppInput) => fetchApi<ApiResponse<ExternalApp>>('/admin/external-apps', json('POST', body)),
