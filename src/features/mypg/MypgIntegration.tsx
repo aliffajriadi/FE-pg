@@ -7,7 +7,7 @@ import { ProjectsSection } from '@/features/merchant/settings/ApiIntegration';
 export default function MypgIntegration() {
   return (
     <>
-      <PageHeader title="Integrasi API MyPG" description="Kelola proyek, API Key, dan Webhook MyPG. Terpisah dari integrasi dashboard live.">
+      <PageHeader title="Integrasi API MyPG" description="Kelola proyek, API Key, dan Webhook MyPG.">
         <Link href="/docs/mypg" target="_blank" className={buttonVariants({ variant: 'outline' })}>
           <BookOpen /> Dokumentasi MyPG
         </Link>

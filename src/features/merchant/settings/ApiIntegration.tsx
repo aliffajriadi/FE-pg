@@ -207,7 +207,7 @@ export function ProjectsSection({ mode }: { mode: IntegrationMode }) {
           </h2>
           <p className="text-sm text-muted-foreground">
             {sandbox
-              ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari yang live.'
+              ? 'Proyek yang sama dipakai untuk uji coba. Key dan webhook sandbox terpisah dari key dan webhook utama.'
               : direct
                 ? 'Tiap proyek punya API Key dan Webhook MyPG sendiri. Proyek bisa langsung dibuat tanpa pengajuan.'
                 : 'Tiap proyek mendapat 1 API Key dan 1 Webhook live. Proyek baru harus diajukan dan disetujui admin.'}

@@ -169,7 +169,7 @@ const json = (method: string, body: unknown): RequestInit => ({ method, body: JS
 export const subadminApi = {
   getDashboard: (range: { from: string; to: string }) => fetchApi<ApiResponse<SubadminDashboard>>(`/subadmin/dashboard${toQuery(range)}`),
   updateProfile: (body: { name: string; email: string }) => fetchApi<ApiResponse<unknown>>('/subadmin/profile', json('PATCH', body)),
-  updatePassword: (body: { currentPassword: string; newPassword: string }) =>
+  updatePassword: (body: { currentPassword?: string; newPassword: string; waToken?: string }) =>
     fetchApi<ApiResponse<unknown>>('/subadmin/password', json('PATCH', body)),
   markPaid: (id: number) => fetchApi<ApiResponse<unknown>>(`/subadmin/transactions/${id}/mark-paid`, { method: 'POST' }),
   getTransactions: (params: SubadminTransactionParams) =>

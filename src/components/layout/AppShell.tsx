@@ -45,6 +45,8 @@ import { Logo } from '@/components/shared/Logo';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { TierBadge } from '@/components/shared/TierBadge';
 import { ProfileDialog } from './ProfileDialog';
+import { CompleteProfileForm } from '@/features/auth/components/CompleteProfileForm';
+import { LinkWhatsAppGate, usePhoneSkip } from '@/features/auth/components/LinkWhatsAppGate';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -151,6 +153,7 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
   }, [mobileOpen]);
   const { data: me } = useMe();
   const logout = useLogout();
+  const [skipPhone, skipPhoneForSession] = usePhoneSkip();
   const isAdmin = role === 'ADMIN';
   const isMerchant = role === 'MERCHANT';
 
@@ -364,7 +367,15 @@ export function AppShell({ role, children }: { role: UserRole; children: React.R
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="mx-auto max-w-7xl space-y-6">{children}</div>
+          <div className="mx-auto max-w-7xl space-y-6">
+            {isMerchant && user?.profileCompleted === false ? (
+              <CompleteProfileForm phone={user.phone} />
+            ) : user?.phone === null && !(role === 'ADMIN' && skipPhone) && !(isMerchant && me?.store?.waOptional) ? (
+              <LinkWhatsAppGate role={role} onSkip={skipPhoneForSession} />
+            ) : (
+              children
+            )}
+          </div>
         </main>
       </div>
 

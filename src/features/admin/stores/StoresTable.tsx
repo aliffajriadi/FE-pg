@@ -61,6 +61,11 @@ export default function StoresTable() {
     successMessage: 'Akses Live disimpan',
   });
 
+  const toggleWaRequired = useApiMutation(
+    ({ id, required }: { id: number; required: boolean }) => adminApi.updateStoreWaOptional(id, !required),
+    { ...options, successMessage: 'Kewajiban WhatsApp disimpan' },
+  );
+
   const toggleMypg = useApiMutation(({ id, enabled }: { id: number; enabled: boolean }) => adminApi.updateStoreMypg(id, enabled), {
     ...options,
     successMessage: 'Akses MyPG disimpan',
@@ -130,11 +135,12 @@ export default function StoresTable() {
                 MyPG
                 {bulkButtons('mypg', 'MyPG')}
               </TableHead>
+              <TableHead>Wajib WA</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableState colSpan={11} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
+            <TableState colSpan={13} isLoading={isLoading} error={error} isEmpty={!stores.length} emptyText="Belum ada toko" />
             {stores.map((store) => (
               <TableRow key={store.id}>
                 <TableCell>
@@ -207,6 +213,15 @@ export default function StoresTable() {
                     disabled={toggleMypg.isPending}
                     aria-label={`Akses MyPG ${store.name}`}
                   />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={!store.waOptional}
+                    onCheckedChange={(checked) => toggleWaRequired.mutate({ id: store.id, required: checked })}
+                    disabled={toggleWaRequired.isPending}
+                    aria-label={`Wajib WhatsApp ${store.name}`}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">{store.user?.phone ? `+${store.user.phone}` : 'Belum ada nomor'}</p>
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">

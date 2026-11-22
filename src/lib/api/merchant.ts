@@ -112,7 +112,8 @@ export const merchantApi = {
 
   // Profil
   updateProfile: (body: { name: string; email: string }) => fetchApi<Msg>('/merchant/profile', json('PATCH', body)),
-  updatePassword: (body: { currentPassword: string; newPassword: string }) =>
+  /** Akun bernomor WhatsApp: waToken dari verifikasi WA menggantikan currentPassword. */
+  updatePassword: (body: { currentPassword?: string; newPassword: string; waToken?: string }) =>
     fetchApi<Msg>('/merchant/password', json('PATCH', body)),
 
   // Proyek, API key, webhook

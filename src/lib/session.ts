@@ -14,13 +14,26 @@ export function getToken() {
  * remember = true: cookie bertahan 1 hari walau browser ditutup (sama dengan masa berlaku token 24 jam).
  * remember = false: cookie sesi, hilang saat browser ditutup.
  */
+/** Proses verifikasi WhatsApp yang tersimpan di tab (key "wa-...") milik akun sebelumnya; dibuang saat ganti sesi. */
+function clearWaVerifications() {
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith('wa-'))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // storage tidak tersedia: tidak ada yang perlu dibersihkan
+  }
+}
+
 export function setSession(token: string, role: UserRole, remember = false) {
+  clearWaVerifications();
   const options = remember ? { ...OPTIONS, expires: REMEMBER_DAYS } : OPTIONS;
   Cookies.set('token', token, options);
   Cookies.set('role', role, options);
 }
 
 export function clearSession() {
+  clearWaVerifications();
   Cookies.remove('token');
   Cookies.remove('role');
 }

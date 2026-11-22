@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import LoginForm from '@/features/auth/components/LoginForm';
+import RegisterWa from '@/features/auth/components/RegisterWa';
 import { Logo } from '@/components/shared/Logo';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
@@ -97,8 +99,24 @@ export default function LoginPage() {
 
           <LoginForm />
 
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              atau
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <RegisterWa mode="login" />
+          </div>
+
           <p className="border-t pt-6 text-sm text-muted-foreground">
-            Belum punya akun atau lupa kata sandi? Hubungi admin Autoko.
+            Belum punya akun?{' '}
+            <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+              Daftar via WhatsApp
+            </Link>
+. Lupa kata sandi?{' '}
+            <Link href="/forgot-password" className="font-medium text-primary underline-offset-4 hover:underline">
+              Atur ulang via WhatsApp
+            </Link>
           </p>
         </div>
       </main>

@@ -25,7 +25,7 @@ import { StatusBadge, ToneBadge } from '@/components/shared/StatusBadge';
 import { TIER_STYLE, TierBadge } from '@/components/shared/TierBadge';
 import type { Store, User } from '@/types';
 import { describeFeeRule } from '../withdrawals/fee';
-import { PasswordCard, ProfileCard } from './ProfileForms';
+import { PasswordCard, ProfileCard, WhatsAppCard } from './ProfileForms';
 
 function ProfileHero({ user, store, stats }: { user: User; store: Store | null; stats?: MerchantStats }) {
   return (
@@ -236,6 +236,7 @@ export default function MerchantAccount() {
             <div className="space-y-4">
               <ProfileCard />
               <PasswordCard />
+              <WhatsAppCard />
             </div>
           </div>
         </>

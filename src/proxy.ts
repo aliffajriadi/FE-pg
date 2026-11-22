@@ -21,7 +21,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname === '/' || pathname.startsWith('/login')) return redirect(homePathFor(role));
+  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password')) return redirect(homePathFor(role));
   if (isAdminRoute && role !== 'ADMIN') return redirect(homePathFor(role));
   if (isMerchantRoute && role !== 'MERCHANT') return redirect(homePathFor(role));
   if (isSubadminRoute && role !== 'SUBADMIN') return redirect(homePathFor(role));
@@ -30,5 +30,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/login', '/admin/:path*', '/dashboard/:path*', '/subadmin/:path*'],
+  matcher: ['/', '/login', '/register', '/forgot-password', '/admin/:path*', '/dashboard/:path*', '/subadmin/:path*'],
 };

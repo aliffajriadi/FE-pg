@@ -23,6 +23,7 @@ import { SimpleSelect } from '@/components/shared/SimpleSelect';
 import { TIER_STYLE, TierBadge } from '@/components/shared/TierBadge';
 import type { TierColor } from '@/lib/api/merchant';
 import { GATEWAY_OPTIONS } from '@/lib/gateway';
+import { SendwaCard } from './SendwaCard';
 
 const NOTIF_OPTIONS = [
   { value: 'wa', label: 'WhatsApp' },
@@ -647,6 +648,7 @@ export default function SystemSettings() {
       ) : (
         <SettingsFormView settings={data} />
       )}
+      <SendwaCard />
       <BackupCard />
     </>
   );

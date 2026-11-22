@@ -57,7 +57,7 @@ export type AdminUser = User & {
 };
 export type AdminStore = Store & {
   balance: number;
-  user: Pick<User, 'id' | 'name' | 'email'>;
+  user: Pick<User, 'id' | 'name' | 'email' | 'phone'>;
   /** Batas efektif per hari (0 = tanpa batas) dan jumlah transaksi hari ini. */
   effectiveDailyTxLimit: number;
   dailyTxUsed: number;
@@ -481,6 +481,7 @@ export const adminApi = {
   updateStoreDailyTxLimit: (id: number, dailyTxLimit: number | null) =>
     fetchApi<Msg>(`/admin/stores/${id}/daily-tx-limit`, json('PATCH', { dailyTxLimit })),
   updateStoreLive: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/live`, json('PATCH', { enabled })),
+  updateStoreWaOptional: (id: number, optional: boolean) => fetchApi<Msg>(`/admin/stores/${id}/wa-optional`, json('PATCH', { optional })),
   updateStoreMypg: (id: number, enabled: boolean) => fetchApi<Msg>(`/admin/stores/${id}/mypg`, json('PATCH', { enabled })),
   updateAllStoresAccess: (field: 'live' | 'mypg', enabled: boolean) =>
     fetchApi<Msg>(`/admin/stores-access/${field}`, json('PATCH', { enabled })),
@@ -600,6 +601,9 @@ export const adminApi = {
 
   // Pengaturan sistem
   getSettings: () => fetchApi<ApiResponse<AdminSettings>>('/admin/settings'),
+  getSendwaConfig: () =>
+    fetchApi<ApiResponse<{ apiKey: string | null; webhookSecret: string | null; webhookUrl: string }>>('/admin/sendwa-config'),
+  updateSendwaConfig: (body: { apiKey?: string; webhookSecret?: string }) => fetchApi<Msg>('/admin/sendwa-config', json('PUT', body)),
   updateSettings: (body: Record<string, unknown>) => fetchApi<Msg>('/admin/settings', json('PATCH', body)),
   backupDatabase: () => fetchBlob('/admin/backup-db'),
 

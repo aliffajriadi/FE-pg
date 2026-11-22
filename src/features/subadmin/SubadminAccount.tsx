@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { ToneBadge } from '@/components/shared/StatusBadge';
-import { PasswordCard, ProfileCard } from '@/features/merchant/account/ProfileForms';
+import { PasswordCard, ProfileCard, WhatsAppCard } from '@/features/merchant/account/ProfileForms';
 import type { User } from '@/types';
 import { DiscordNotificationCard } from './DiscordNotificationCard';
 
@@ -169,6 +169,7 @@ export default function SubadminAccount() {
             <div className="space-y-4">
               <ProfileCard api={subadminApi} />
               <PasswordCard api={subadminApi} minLength={8} />
+              <WhatsAppCard />
             </div>
           </div>
         </>

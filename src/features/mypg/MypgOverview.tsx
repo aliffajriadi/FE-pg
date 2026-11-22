@@ -207,7 +207,7 @@ export default function MypgOverview() {
 
   return (
     <>
-      <PageHeader title="Beranda MyPG" description="Pembayaran masuk langsung ke QRIS Anda sendiri, terpisah dari saldo dashboard live.">
+      <PageHeader title="Beranda MyPG" description="Pembayaran masuk langsung ke QRIS Anda sendiri.">
         <Link href="/dashboard/mypg/panduan" className={buttonVariants({ variant: 'outline' })}>
           <GraduationCap /> Panduan Pemula
         </Link>

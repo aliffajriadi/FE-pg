@@ -5,9 +5,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, KeyRound, UserRound } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/shared/WhatsAppIcon';
 import { merchantApi } from '@/lib/api/merchant';
 import { useApiMutation } from '@/hooks/use-api-mutation';
 import { useMe } from '@/features/auth/hooks';
+import RegisterWa from '@/features/auth/components/RegisterWa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -27,7 +29,8 @@ const passwordSchema = (minLength: number) =>
 /** Endpoint simpan profil & password. Default: merchant; sub admin memakai endpoint-nya sendiri. */
 export interface AccountApi {
   updateProfile: (body: { name: string; email: string }) => Promise<unknown>;
-  updatePassword: (body: { currentPassword: string; newPassword: string }) => Promise<unknown>;
+  /** waToken (verifikasi WhatsApp) menggantikan currentPassword untuk akun bernomor WA */
+  updatePassword: (body: { currentPassword?: string; newPassword: string; waToken?: string }) => Promise<unknown>;
 }
 
 function ProfileForm({ name, email, api }: { name: string; email: string; api: AccountApi }) {
@@ -112,16 +115,74 @@ export function ProfileCard({ api = merchantApi }: { api?: AccountApi }) {
 }
 
 export function PasswordCard({ api = merchantApi, minLength = 6 }: { api?: AccountApi; minLength?: number }) {
+  // Akun bernomor WhatsApp wajib verifikasi WA untuk ubah password (hanya merchant yang punya nomor)
+  const { data: me } = useMe();
+  const viaWhatsApp = !!me?.user.phone;
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="size-4 text-primary" /> Ubah Password
         </CardTitle>
-        <CardDescription>Gunakan minimal {minLength} karakter. Jangan bagikan password ke siapa pun.</CardDescription>
+        <CardDescription>
+          {viaWhatsApp
+            ? 'Verifikasi dulu lewat WhatsApp akun Anda, lalu buat password baru (minimal 8 karakter).'
+            : `Gunakan minimal ${minLength} karakter. Jangan bagikan password ke siapa pun.`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <PasswordForm api={api} minLength={minLength} />
+        {viaWhatsApp ? <RegisterWa mode="change" updatePassword={api.updatePassword} /> : <PasswordForm api={api} minLength={minLength} />}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Tambah / ganti nomor WhatsApp merchant: nomor lama dibuktikan dulu (bila ada), lalu kirim kode dari nomor baru. */
+export function WhatsAppCard() {
+  const { data: me } = useMe();
+  const phone = me?.user.phone;
+  const [editing, setEditing] = useState(false);
+  const [oldToken, setOldToken] = useState<string | null>(null);
+  const close = () => {
+    setEditing(false);
+    setOldToken(null);
+  };
+  const needOld = !!phone && !oldToken;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <WhatsAppIcon className="size-4 text-primary" /> Nomor WhatsApp
+        </CardTitle>
+        <CardDescription>
+          {phone
+            ? `Terhubung: +${phone}. Dipakai untuk masuk cepat, lupa password, dan verifikasi.`
+            : 'Belum ada. Tambahkan untuk masuk cepat dan lupa password via WhatsApp.'}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {!editing ? (
+          <Button variant="outline" onClick={() => setEditing(true)}>
+            {phone ? 'Ganti Nomor' : 'Tambah Nomor'}
+          </Button>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {needOld
+                ? 'Langkah 1 dari 2: kirim kode dari nomor lama untuk membuktikan ini Anda.'
+                : `${phone ? 'Langkah 2 dari 2: ' : ''}kirim kode dari nomor WhatsApp BARU yang ingin dipakai.`}
+            </p>
+            {needOld ? (
+              <RegisterWa mode="phone-old" onVerified={setOldToken} />
+            ) : (
+              <RegisterWa mode="phone-new" oldToken={oldToken ?? undefined} onVerified={close} onRestart={() => setOldToken(null)} />
+            )}
+            <Button variant="ghost" size="sm" onClick={close}>
+              Batal
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

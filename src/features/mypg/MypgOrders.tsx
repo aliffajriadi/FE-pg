@@ -113,7 +113,7 @@ export default function MypgOrders() {
 
   return (
     <>
-      <PageHeader title="Transaksi MyPG" description="Invoice yang dibayar ke QRIS Anda. Terpisah dari transaksi dashboard live.">
+      <PageHeader title="Transaksi MyPG" description="Invoice yang dibayar ke QRIS Anda.">
         <CreateMypgOrderDialog />
       </PageHeader>
 

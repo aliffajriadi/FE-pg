@@ -40,6 +40,9 @@ export interface User {
   apiKeyLimit?: number;
   webhookLimit?: number;
   createdAt?: string;
+  phone?: string | null;
+  /** false = akun daftar via WhatsApp yang belum mengisi nama, email, kata sandi */
+  profileCompleted?: boolean;
 }
 
 export interface Store {
@@ -72,6 +75,8 @@ export interface Store {
   liveEnabled?: boolean;
   /** Akses Panel MyPG (QRIS milik merchant sendiri). */
   mypgEnabled?: boolean;
+  /** true = admin membebaskan merchant dari kewajiban sambung WhatsApp */
+  waOptional?: boolean;
   mypgActiveUntil?: string | null;
   createdAt: string;
 }
